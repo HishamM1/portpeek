@@ -1,0 +1,17 @@
+name: winget
+
+# Auto-submits an update PR to microsoft/winget-pkgs whenever a release is published.
+# Note: the FIRST version must be submitted manually with `wingetcreate new` —
+# this action only updates a package that already exists in winget-pkgs.
+on:
+  release:
+    types: [released]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: HishamMedhat.PortPeek
+          token: ${{ secrets.WINGET_TOKEN }}
