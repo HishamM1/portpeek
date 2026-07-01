@@ -1,0 +1,36 @@
+{
+  "name": "portpeek-desktop",
+  "version": "1.0.0",
+  "description": "A Windows-first localhost port tray utility.",
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test:ui": "node --test src/lib/utils/ports.test.mjs",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
+    "tauri": "tauri"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/geist-mono": "^5.2.8",
+    "@lucide/svelte": "^1.22.0",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-autostart": "~2.5.1",
+    "@tauri-apps/plugin-clipboard-manager": "~2.3.2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tailwindcss/vite": "^4.3.1",
+    "@tauri-apps/cli": "^2",
+    "svelte": "^5.56.3",
+    "svelte-check": "^4.6.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  }
+}

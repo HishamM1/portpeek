@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", "Cascadia Code", ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: light;
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --background: #eef3f4;
+  --surface: #ffffff;
+  --surface-muted: #f1f6f7;
+  --surface-elevated: #ffffff;
+
+  --text-primary: #16282f;
+  --text-secondary: #46585f;
+  --text-muted: #6a7e85;
+  --text-inverse: #ffffff;
+
+  --border-subtle: #dfe8ea;
+  --border-strong: #cdd9dc;
+
+  --primary: #0b8175;
+  --primary-hover: #0a7368;
+  --primary-active: #08625a;
+  --primary-soft: #e0f4f1;
+  --primary-border: #b4e2da;
+
+  --success: #16a34a;
+  --success-soft: #eaf8ef;
+  --warning: #a8650d;
+  --warning-soft: #fdf2e3;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --info: #2563eb;
+  --info-soft: #eaf1ff;
+
+  --shadow-color: rgba(24, 39, 47, 0.1);
+  background: var(--background);
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0a151a;
+  --surface: #102029;
+  --surface-muted: #18313c;
+  --surface-elevated: #162c35;
+  --text-primary: #e9eff1;
+  --text-secondary: #c3d2d7;
+  --text-muted: #8aa3ac;
+  --text-inverse: #06231f;
+  --border-subtle: #1f3d49;
+  --border-strong: #2e525f;
+  --primary: #34d6c0;
+  --primary-hover: #4fe3ce;
+  --primary-active: #26b9a6;
+  --primary-soft: rgba(52, 214, 192, 0.14);
+  --primary-border: rgba(52, 214, 192, 0.35);
+  --success: #2dd47e;
+  --success-soft: rgba(45, 212, 126, 0.14);
+  --warning: #f5b056;
+  --warning-soft: rgba(245, 176, 86, 0.15);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --info: #56c5d8;
+  --info-soft: rgba(86, 197, 216, 0.14);
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  background: var(--background);
+  color: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]),
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --background: #0a151a;
+    --surface: #102029;
+    --surface-muted: #18313c;
+    --surface-elevated: #162c35;
+    --text-primary: #e9eff1;
+    --text-secondary: #c3d2d7;
+    --text-muted: #8aa3ac;
+    --text-inverse: #06231f;
+    --border-subtle: #1f3d49;
+    --border-strong: #2e525f;
+    --primary: #34d6c0;
+    --primary-hover: #4fe3ce;
+    --primary-active: #26b9a6;
+    --primary-soft: rgba(52, 214, 192, 0.14);
+    --primary-border: rgba(52, 214, 192, 0.35);
+    --success: #2dd47e;
+    --success-soft: rgba(45, 212, 126, 0.14);
+    --warning: #f5b056;
+    --warning-soft: rgba(245, 176, 86, 0.15);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --info: #56c5d8;
+    --info-soft: rgba(86, 197, 216, 0.14);
+    --shadow-color: rgba(0, 0, 0, 0.45);
+    background: var(--background);
+    color: var(--text-primary);
+  }
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+body {
+  background: var(--surface);
+}
+
+@layer base {
+  /* Inherit the app font on form controls, but stay in a layer so Tailwind
+     text-size/weight utilities (e.g. text-[11px]) still override these. */
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+* {
+  scrollbar-color: var(--border-subtle) transparent;
+  scrollbar-width: thin;
+}
+
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

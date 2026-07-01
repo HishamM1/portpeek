@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PortPeek — see what's on your localhost ports</title>
+<meta name="description" content="A small Windows tray tool that shows every process listening on a local port (PID, memory, project, command) and frees a busy port in one click." />
+<meta property="og:title" content="PortPeek — see what's on your localhost ports" />
+<meta property="og:description" content="Every process on your local ports, in one glance. Free a busy port in one click." />
+<meta property="og:type" content="website" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --abyss:#0A151A; --hull:#102029; --deck:#18313C; --deck-2:#1F3D49;
+    --seam:#1F3D49; --seam-soft:#16303B;
+    --fog:#8AA3AC; --fog-dim:#5E7882; --bone:#E9EFF1;
+    --signal:#34D6C0; --signal-deep:#16A493; --signal-dim:#1c6b62;
+    --buoy:#F5B056; --flare:#FF6B5C; --live:#2DD47E;
+    --sans:"Geist","Segoe UI",system-ui,sans-serif;
+    --mono:"Geist Mono","Cascadia Code",ui-monospace,monospace;
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);
+    background:
+      radial-gradient(80% 60% at 78% -5%, #10262b 0%, transparent 60%),
+      var(--abyss);
+    color:var(--bone);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  ::selection{background:rgba(52,214,192,.24)}
+  :focus-visible{outline:2px solid var(--signal);outline-offset:3px;border-radius:6px}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* eyebrow / mono labels — the terminal vernacular is the structural device */
+  .eyebrow{
+    font:600 12px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase;
+    color:var(--signal); display:inline-flex; align-items:center; gap:9px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--signal);opacity:.6}
+
+  /* ---------- nav ---------- */
+  header.nav{position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(8px);
+    background:rgba(10,21,26,.72);
+    border-bottom:1px solid var(--seam-soft);}
+  .nav-in{display:flex;align-items:center;gap:14px;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .glyph{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(150deg,#3FE6D0,#16A493 72%);
+    box-shadow:0 4px 14px -4px var(--signal-dim), inset 0 0 0 1px rgba(255,255,255,.14);}
+  .glyph svg{width:18px;height:18px}
+  .nav-links{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .nav-links a.tab{padding:8px 12px;font-size:13.5px;color:var(--fog);border-radius:8px}
+  .nav-links a.tab:hover{color:var(--bone);background:var(--deck)}
+  @media(max-width:640px){.nav-links a.tab{display:none}}
+  .tab.gh{display:inline-flex;align-items:center;gap:7px}
+  .gh-mark{width:15px;height:15px}
+  .gh-stars{display:inline-flex;align-items:center;gap:4px;font:600 12px var(--mono);color:var(--fog);
+    background:var(--deck);border:1px solid var(--seam);border-radius:20px;padding:1px 7px}
+  .gh-stars svg{width:11px;height:11px;color:var(--buoy)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;
+    border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid transparent;transition:.15s;white-space:nowrap}
+  .btn svg{width:16px;height:16px}
+  .btn-primary{background:var(--signal);color:#04231f;box-shadow:0 6px 20px -8px var(--signal-dim)}
+  .btn-primary:hover{background:#48e2cd;transform:translateY(-1px)}
+  .btn-ghost{border-color:var(--seam);color:var(--bone);background:transparent}
+  .btn-ghost:hover{background:var(--deck);border-color:var(--deck-2)}
+  .btn-sm{padding:8px 13px;font-size:13px}
+
+  /* ---------- hero ---------- */
+  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;
+    padding:clamp(48px,9vw,104px) 0 clamp(40px,7vw,80px)}
+  @media(max-width:900px){.hero{grid-template-columns:1fr;gap:44px}}
+  h1{font-weight:700;letter-spacing:-.03em;line-height:1.02;
+    font-size:clamp(40px,6.4vw,72px);margin:20px 0 0}
+  h1 .port{font-family:var(--mono);color:var(--signal);font-weight:600;letter-spacing:-.02em}
+  .lede{color:var(--fog);font-size:clamp(16px,1.6vw,18.5px);max-width:36ch;margin-top:22px}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .meta{margin-top:20px;font:500 12.5px/1.5 var(--mono);color:var(--fog-dim);letter-spacing:.02em}
+  .meta b{color:var(--fog);font-weight:500}
+
+  /* ---------- app panel recreation (the hero visual / signature) ---------- */
+  .panel{width:100%;max-width:400px;margin-inline:auto;
+    background:linear-gradient(180deg,#12242d 0%,var(--hull) 30%);
+    border:1px solid var(--seam);border-radius:16px;overflow:hidden;
+    box-shadow:0 40px 90px -40px #000, 0 0 0 1px rgba(0,0,0,.4);}
+  .p-head{display:flex;align-items:center;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--seam-soft)}
+  .p-head .glyph{width:34px;height:34px;border-radius:10px}
+  .p-name{font-weight:600;font-size:14px}
+  .p-live{display:flex;align-items:center;gap:6px;font:500 11px var(--mono);color:var(--fog);margin-top:2px}
+  .p-live .d{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live)}
+  .p-live b{color:var(--live);font-weight:600}
+  .p-dots{margin-left:auto;display:flex;gap:14px;color:var(--fog-dim)}
+  .p-dots svg{width:15px;height:15px}
+  .p-search{margin:12px 14px 4px;display:flex;gap:8px}
+  .p-input{flex:1;height:32px;border-radius:9px;border:1px solid var(--seam-soft);background:var(--abyss);
+    display:flex;align-items:center;gap:7px;padding:0 10px;color:var(--fog-dim);font-size:11px}
+  .p-input svg{width:13px;height:13px}
+  .p-pill{height:32px;border:1px solid var(--seam);background:transparent;border-radius:9px;
+    display:flex;align-items:center;gap:6px;padding:0 10px;font:500 11px var(--sans);color:var(--fog);cursor:pointer;transition:.15s}
+  .p-pill:hover{background:var(--deck)}
+  .p-pill.on{border-color:var(--signal-dim);background:#0e2b2a;color:var(--bone)}
+  .p-pill .d{width:6px;height:6px;border-radius:50%;background:var(--signal);box-shadow:0 0 6px var(--signal)}
+  #pk-search::-webkit-search-cancel-button,#pk-search::-webkit-search-decoration{-webkit-appearance:none;appearance:none}
+  .chip.udp{color:var(--fog);background:var(--deck-2);border-color:var(--seam)}
+  .chip.udp i{font-style:normal;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:var(--fog-dim);margin-left:4px}
+  .row{display:grid;grid-template-columns:30px 1fr auto;gap:11px;align-items:center;padding:11px 14px;border-top:1px solid var(--seam-soft)}
+  .row .ico{width:30px;height:30px;border-radius:8px;background:var(--deck-2);border:1px solid var(--seam);display:grid;place-items:center;font:600 11px var(--sans);color:var(--fog)}
+  .row .nm{display:flex;align-items:center;gap:7px}
+  .row .nm .sd{width:6px;height:6px;border-radius:50%;background:var(--live)}
+  .row .nm b{font-size:13px;font-weight:600}
+  .fw{font:600 9px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--signal);
+    border:1px solid var(--signal-dim);background:#0e2b2a;border-radius:5px;padding:1px 5px}
+  .chip{font:600 11.5px var(--mono);color:var(--signal);background:#0d2a28;border:1px solid #1c4540;border-radius:6px;padding:2px 7px;margin-top:6px;display:inline-block}
+  .stat{text-align:right;font:500 10px var(--mono);color:var(--fog-dim);letter-spacing:.03em}
+  .stat .mem{margin-top:4px;color:var(--fog)}
+  .stat .mem.hot{color:var(--buoy)}
+  .exposed{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font:600 9px var(--sans);
+    text-transform:uppercase;letter-spacing:.04em;color:var(--buoy);
+    border:1px solid rgba(245,176,86,.35);background:rgba(245,176,86,.12);border-radius:5px;padding:1px 5px}
+  .exposed svg{width:9px;height:9px}
+  .ecg{stroke:#06231f;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:64;animation:sweep 2.6s linear infinite}
+  @keyframes sweep{from{stroke-dashoffset:64}to{stroke-dashoffset:0}}
+
+  /* ---------- section scaffolding ---------- */
+  section{padding:clamp(56px,8vw,96px) 0}
+  .band{border-top:1px solid var(--seam-soft)}
+  .kicker{margin-top:16px;font-weight:700;letter-spacing:-.02em;font-size:clamp(26px,3.6vw,40px);line-height:1.08}
+  .sub{color:var(--fog);margin-top:14px;max-width:52ch;font-size:16.5px}
+
+  /* ---------- "solved" band ---------- */
+  .solve{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:center}
+  @media(max-width:860px){.solve{grid-template-columns:1fr;gap:36px}}
+  .term{font-family:var(--mono);font-size:13.5px;background:#0c1418;border:1px solid var(--seam);
+    border-radius:12px;overflow:hidden;box-shadow:0 30px 70px -40px #000}
+  .term-bar{display:flex;gap:6px;padding:11px 13px;border-bottom:1px solid var(--seam-soft)}
+  .term-bar i{width:10px;height:10px;border-radius:50%;background:var(--deck-2)}
+  .term-body{padding:16px 15px;line-height:1.9;color:var(--fog)}
+  .term-body .err{color:var(--flare)}
+  .term-body .dim{color:var(--fog-dim)}
+  .term-body .ok{color:var(--live)}
+  .term-body .cmd{color:var(--bone)}
+  .resolver{margin-top:14px;display:flex;align-items:center;gap:10px;
+    border:1px solid var(--seam);border-left:2px solid var(--buoy);background:var(--deck);border-radius:10px;padding:11px 12px}
+  .resolver .txt{flex:1;font:500 12px var(--sans);color:var(--bone)}
+  .resolver .txt .mono{font-family:var(--mono);font-weight:600}
+  .resolver .free{display:inline-flex;align-items:center;gap:6px;background:var(--flare);color:#1b0908;
+    font:600 12px var(--sans);border-radius:8px;padding:7px 12px}
+  .resolver .free svg{width:13px;height:13px}
+
+  /* ---------- features ---------- */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--hull);border:1px solid var(--seam-soft);border-radius:14px;padding:22px 20px;transition:.18s}
+  .card:hover{border-color:var(--seam);transform:translateY(-2px)}
+  .card .ic{width:38px;height:38px;border-radius:10px;background:var(--deck);border:1px solid var(--seam);
+    display:grid;place-items:center;color:var(--signal);margin-bottom:15px}
+  .card .ic svg{width:19px;height:19px}
+  .card h3{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .card p{color:var(--fog);font-size:14px;margin-top:8px;line-height:1.6}
+
+  /* ---------- interactive panel ---------- */
+  #pk{display:flex;flex-direction:column;height:clamp(420px,58vh,470px)}
+  #pk-rows{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--seam) transparent}
+  #pk-rows::-webkit-scrollbar{width:8px}
+  #pk-rows::-webkit-scrollbar-thumb{background:var(--seam);border-radius:8px;border:2px solid var(--hull)}
+  .p-ico{background:none;border:0;padding:0;cursor:pointer;color:var(--fog-dim);display:grid;place-items:center;transition:color .15s}
+  .p-ico:hover{color:var(--bone)}
+  .p-ico svg{width:15px;height:15px}
+  .p-input{cursor:text}
+  .p-input input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--bone);font:400 11px var(--sans)}
+  .p-input input::placeholder{color:var(--fog-dim)}
+  @keyframes pk-spin{to{transform:rotate(360deg)}}
+  #pk-refresh-svg.spin{animation:pk-spin .6s linear}
+
+  .row{display:grid;grid-template-columns:30px 1fr auto 15px;gap:11px;align-items:center;
+    width:100%;text-align:left;padding:11px 14px;border:0;border-top:1px solid var(--seam-soft);
+    background:none;color:inherit;font:inherit;cursor:pointer;transition:background .13s}
+  .row:hover{background:var(--deck)}
+  .meat{min-width:0}
+  .chev{width:15px;height:15px;color:var(--fog-dim);transition:transform .18s}
+  .pk-item.open .chev{transform:rotate(180deg)}
+  .pk-item.open>.row{background:var(--deck)}
+
+  .pk-detail{padding:4px 14px 16px;border-top:1px solid var(--seam-soft);background:var(--deck);
+    display:grid;gap:12px}
+  .pk-eyebrow{display:flex;align-items:center;gap:7px;padding-top:12px;
+    font:600 10px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--fog-dim)}
+  .pk-eyebrow svg{width:12px;height:12px;color:var(--live)}
+  .pk-eyebrow span{color:var(--signal)}
+  .pk-endpoint{display:flex;align-items:center;gap:9px;background:var(--abyss);border:1px solid var(--seam-soft);border-radius:9px;padding:8px 10px}
+  .pk-host{font:500 10.5px var(--mono);color:var(--fog-dim)}
+  .pk-host.exp{color:var(--buoy)}
+  .pk-gauges{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .pk-gauge{background:var(--hull);border:1px solid var(--seam-soft);border-radius:9px;padding:9px 11px}
+  .pk-gauge span{display:block;font:500 9.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--fog-dim)}
+  .pk-gauge b{display:block;font:600 15px var(--mono);color:var(--bone);margin-top:4px}
+  .pk-meta{display:grid;gap:9px}
+  .pk-meta>div{display:grid;grid-template-columns:74px 1fr;gap:8px;align-items:baseline}
+  .pk-meta .k{font:500 10px var(--sans);color:var(--fog-dim)}
+  .pk-meta .v{font:500 11px var(--mono);color:var(--bone);word-break:break-all;min-width:0}
+  .pk-detfoot{display:flex;align-items:center;gap:9px;padding-top:4px}
+  .pk-where{flex:1;min-width:0;font:500 10px var(--mono);color:var(--fog-dim)}
+  .pk-detfoot.confirm .pk-where{color:var(--bone);font-family:var(--sans);font-weight:500;font-size:11px}
+  .pk-stop{display:inline-flex;align-items:center;gap:6px;background:var(--flare);color:#1b0908;
+    border:0;border-radius:8px;padding:7px 12px;font:600 11px var(--sans);cursor:pointer;transition:opacity .15s}
+  .pk-stop:hover{opacity:.9}
+  .pk-cancel{background:none;border:0;color:var(--fog);font:600 11px var(--sans);padding:7px 10px;border-radius:8px;cursor:pointer}
+  .pk-cancel:hover{background:var(--hull)}
+  .pk-empty{padding:34px 16px;text-align:center;color:var(--fog-dim);font-size:12.5px;border-top:1px solid var(--seam-soft)}
+  .pk-resolver{display:flex;align-items:center;gap:9px;margin:11px 14px 2px;padding:10px 12px;border-radius:10px;border:1px solid var(--seam-soft);background:var(--deck)}
+  .pk-resolver.in{border-left:2px solid var(--buoy)}
+  .pk-resolver.free{color:var(--fog)}
+  .pk-resolver.free svg{width:15px;height:15px;color:var(--live);flex:none}
+  .pk-resolver .rtext{flex:1;min-width:0;font:500 12px var(--sans);color:var(--bone)}
+  .pk-resolver .rtext .mono{font-family:var(--mono);font-weight:600}
+  .pk-resolver .rtext .rdim{color:var(--fog-dim);font-family:var(--mono)}
+  .pk-resolver.free .rtext{color:var(--fog)}
+  .pk-free{display:inline-flex;align-items:center;gap:6px;background:var(--flare);color:#1b0908;border:0;border-radius:8px;padding:7px 12px;font:600 11px var(--sans);cursor:pointer;transition:opacity .15s;flex:none}
+  .pk-free:hover{opacity:.9}
+  .p-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;
+    border-top:1px solid var(--seam-soft);font:500 10.5px var(--mono);color:var(--fog-dim);letter-spacing:.02em}
+  .p-hint{color:var(--signal-dim)}
+
+  /* ---------- download band ---------- */
+  .get{text-align:center}
+  .get .kicker{max-width:20ch;margin-inline:auto}
+  .get .cta{justify-content:center}
+  .specs{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:center;
+    font:500 12.5px var(--mono);color:var(--fog-dim)}
+  .specs span{display:inline-flex;align-items:center;gap:7px}
+  .specs svg{width:13px;height:13px;color:var(--signal)}
+  .note{margin-top:26px;font-size:12.5px;color:var(--fog-dim);max-width:44ch;margin-inline:auto;line-height:1.6}
+  .note code{font-family:var(--mono);color:var(--fog);background:var(--deck);padding:1px 6px;border-radius:5px}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--seam-soft);padding:34px 0}
+  .foot{display:flex;flex-wrap:wrap;gap:16px;align-items:center;color:var(--fog-dim);font-size:13px}
+  .foot .brand{color:var(--fog)}
+  .foot .fl{margin-left:auto;display:flex;gap:20px}
+  .foot a:hover{color:var(--bone)}
+
+  [data-reveal]{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+  [data-reveal].in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important}
+    html{scroll-behavior:auto}
+    [data-reveal]{opacity:1;transform:none;transition:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top" aria-label="PortPeek home">
+      <span class="glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><polyline class="ecg" points="1,12 6,12 9,5 12,19 15,9 18,12 23,12"/></svg>
+      </span>
+      PortPeek
+    </a>
+    <nav class="nav-links">
+      <a class="tab" href="#features">Features</a>
+      <a class="tab" href="#how">How it works</a>
+      <a class="tab gh" id="gh-link" href="https://github.com/HishamM1/portpeek">
+        <svg class="gh-mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.63.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.34 1.12 2.91.86.09-.66.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+        GitHub
+        <span class="gh-stars" id="gh-stars" hidden><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01z"/></svg><b>0</b></span>
+      </a>
+      <a class="btn btn-primary btn-sm" href="https://github.com/HishamM1/portpeek/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Download
+      </a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ============ HERO ============ -->
+<div class="wrap">
+  <div class="hero">
+    <div data-reveal>
+      <span class="eyebrow">Tray-native · Windows · v1.0.0</span>
+      <h1>What's on <span class="port">:3000</span>?</h1>
+      <p class="lede">
+        Lives in your tray. Shows every process on a local port, with its PID, memory, project,
+        and launch command. Port taken? Free it in one click.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/HishamM1/portpeek/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/HishamM1/portpeek">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.63.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.34 1.12 2.91.86.09-.66.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+          View source
+        </a>
+      </div>
+      <p class="meta">Free &amp; open source · <b>Windows 10/11</b> · ~5&nbsp;MB · just download and run</p>
+    </div>
+
+    <!-- signature: a playable mini-PortPeek (see the script at the end of the file) -->
+    <div data-reveal>
+      <div class="panel" id="pk" aria-label="Interactive PortPeek demo">
+        <div class="p-head">
+          <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline class="ecg" points="1,12 6,12 9,5 12,19 15,9 18,12 23,12"/></svg></span>
+          <div>
+            <div class="p-name">PortPeek</div>
+            <div class="p-live"><span class="d"></span><b id="pk-count">0</b>&nbsp;listening</div>
+          </div>
+          <div class="p-dots">
+            <button type="button" class="p-ico" id="pk-refresh" title="Rescan" aria-label="Rescan ports">
+              <svg id="pk-refresh-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+            </button>
+            <span class="p-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+          </div>
+        </div>
+        <div class="p-search">
+          <label class="p-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="pk-search" type="search" placeholder="Search ports or processes" aria-label="Search demo ports" autocomplete="off" spellcheck="false" />
+          </label>
+          <button type="button" class="p-pill" id="pk-all" aria-pressed="false"><span class="d"></span><span id="pk-all-label">Dev ports</span></button>
+          <button type="button" class="p-pill" id="pk-udp" aria-pressed="false">UDP</button>
+        </div>
+        <div id="pk-rows"></div>
+        <div class="p-foot"><span id="pk-foot"></span><span class="p-hint">↑ click a row · try stopping one</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ THE MOMENT ============ -->
+<section class="band" id="how">
+  <div class="wrap solve">
+    <div data-reveal>
+      <span class="eyebrow">The 3pm problem</span>
+      <h2 class="kicker">EADDRINUSE, solved.</h2>
+      <p class="sub">
+        Something's squatting on the port you need and you have no idea what. The usual answer is a
+        detour through <code style="font-family:var(--mono);color:var(--fog)">netstat</code>, a PID, and Task Manager.
+      </p>
+      <p class="sub">
+        In PortPeek you type the port, see exactly which process owns it, and stop it. One click, back to work.
+      </p>
+    </div>
+    <div data-reveal>
+      <div class="term" role="img" aria-label="Terminal showing an EADDRINUSE error, resolved by PortPeek freeing the port">
+        <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="term-body">
+          <div><span class="dim">$</span> <span class="cmd">npm run dev</span></div>
+          <div class="err">Error: listen EADDRINUSE: address already in use :::3000</div>
+          <div class="dim">&nbsp;&nbsp;&nbsp;&nbsp;...who even started that?</div>
+        </div>
+      </div>
+      <div class="resolver">
+        <span class="txt"><span class="mono">:3000</span> in use · vite · <span style="color:var(--fog-dim);font-family:var(--mono)">PID 14820</span></span>
+        <span class="free"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>Free port</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="band" id="features">
+  <div class="wrap">
+    <div data-reveal>
+      <span class="eyebrow">What you get</span>
+      <h2 class="kicker">The whole picture for every port.</h2>
+      <p class="sub">The context you actually need before you decide what to do about a port.</p>
+    </div>
+    <div class="grid">
+      <div class="card" data-reveal>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+        <h3>Full process context</h3>
+        <p>PID, memory, uptime, executable, project directory, and the launch command for every listener.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Free a port in one click</h3>
+        <p>Type a port number, see what holds it, stop the process. Reclaim <span style="font-family:var(--mono)">:3000</span> without the terminal archaeology.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div>
+        <h3>Network exposure, flagged</h3>
+        <p>Instantly see when something's bound to <span style="font-family:var(--mono)">0.0.0.0</span> and reachable from other machines on your network.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+        <h3>Framework &amp; app aware</h3>
+        <p>Recognizes Postgres, Vite, Next.js, Docker, WSL and more, labelled with real icons instead of raw process names.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div>
+        <h3>Filter the noise</h3>
+        <p>Dev ports vs system ports, TCP and UDP, plus live search across ports, process names and PIDs.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+        <h3>Tiny and native</h3>
+        <p>Built with Tauri, not Electron. ~5&nbsp;MB, lives in your tray, and barely touches memory.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ DOWNLOAD ============ -->
+<section class="band get">
+  <div class="wrap" data-reveal>
+    <span class="eyebrow" style="justify-content:center">Get PortPeek</span>
+    <h2 class="kicker">Stop hunting for what's on your ports.</h2>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/HishamM1/portpeek/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Download for Windows
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/HishamM1/portpeek">View source</a>
+    </div>
+    <div class="specs">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Windows 10 / 11 (x64)</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Free &amp; open source (MIT)</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>~5 MB · no account</span>
+    </div>
+    <p class="note">
+      Prefer a package manager? <code>winget install PortPeek</code> <span style="opacity:.6">(coming soon)</span>.
+      On first launch Windows may show a SmartScreen prompt. Choose <b style="color:var(--fog)">More info → Run anyway</b> until the app is code-signed.
+    </p>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot">
+    <span class="brand" style="display:flex;align-items:center;gap:9px">
+      <span class="glyph" style="width:24px;height:24px;border-radius:7px" aria-hidden="true"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><polyline class="ecg" points="1,12 6,12 9,5 12,19 15,9 18,12 23,12"/></svg></span>
+      PortPeek
+    </span>
+    <span style="color:var(--fog-dim)">localhost, decoded.</span>
+    <span class="fl">
+      <a href="https://github.com/HishamM1/portpeek">GitHub</a>
+      <a href="https://github.com/HishamM1/portpeek/releases">Releases</a>
+      <a href="https://github.com/HishamM1/portpeek/blob/main/LICENSE">License</a>
+    </span>
+  </div>
+  <div class="wrap" style="margin-top:16px;font-size:12px;color:var(--fog-dim)">
+    Built with Tauri &amp; Svelte. PortPeek reads your machine's listening ports locally. Nothing leaves your computer.
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }, { threshold: 0.12 });
+  document.querySelectorAll("[data-reveal]").forEach((el) => io.observe(el));
+
+  (async () => {
+    const link = document.getElementById("gh-link");
+    const pill = document.getElementById("gh-stars");
+    if (!link || !pill) return;
+    const m = link.href.match(/github\.com\/([^/]+)\/([^/#?]+)/);
+    if (!m || link.href.includes("{{")) return;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${m[1]}/${m[2]}`);
+      if (!res.ok) return;
+      const n = (await res.json()).stargazers_count;
+      pill.querySelector("b").textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+      pill.hidden = false;
+    } catch {}
+  })();
+
+  const SEED = [
+    { id:"postgres", name:"postgres", ico:"Pg", color:"#7fb4e6", port:5432, proto:"tcp", pid:5140, mem:"2.2 MB", up:"3d 4h", exe:"postgres.exe", proj:"C:\\Data\\pg", cmd:"postgres -D C:\\Data\\pg -p 5432", exposed:false },
+    { id:"warp", name:"warp", svg:'<path d="m4 17 6-6-6-6M12 19h8"/>', color:"var(--signal)", port:9277, proto:"tcp", pid:9784, mem:"102 MB", up:"8h 12m", exe:"warp.exe", proj:"—", cmd:"warp --agent tcp:9277", exposed:false },
+    { id:"vite", name:"vite", fw:"vite", ico:"▲", color:"#b39ddb", port:5173, proto:"tcp", pid:14820, mem:"48 MB", up:"22m", exe:"node.exe", proj:"C:\\Projects\\shop", cmd:"node node_modules/vite/bin/vite.js --host", exposed:true },
+    { id:"adb", name:"adb", ico:"A", color:"var(--live)", port:5037, proto:"tcp", pid:22904, mem:"2.7 MB", up:"20h 48m", exe:"adb.exe", proj:"C:\\android\\platform-tools", cmd:"adb -L tcp:5037 fork-server server", exposed:false },
+    { id:"tailscaled", name:"tailscaled", ico:"T", color:"#8aa3ac", port:41641, proto:"udp", pid:9076, mem:"17 MB", up:"1d 3h", exe:"tailscaled.exe", proj:"—", cmd:"tailscaled --tun userspace-networking", exposed:true },
+    { id:"svchost-rpc", name:"svchost", ico:"S", color:"#8aa3ac", port:135, proto:"tcp", system:true, pid:1084, mem:"1.4 MB", up:"5d 2h", exe:"svchost.exe", proj:"—", cmd:"svchost.exe -k RPCSS -p", exposed:false },
+    { id:"system-smb", name:"System", ico:"S", color:"#8aa3ac", port:445, proto:"tcp", system:true, pid:4, mem:"0.1 MB", up:"5d 2h", exe:"System", proj:"—", cmd:"—", exposed:true },
+    { id:"svchost-mdns", name:"svchost", ico:"S", color:"#8aa3ac", port:5353, proto:"udp", system:true, pid:1520, mem:"2.0 MB", up:"5d 2h", exe:"svchost.exe", proj:"—", cmd:"svchost.exe -k NetworkService", exposed:false },
+  ];
+  const rowsEl = document.getElementById("pk-rows");
+  if (rowsEl) {
+    let procs = SEED.slice(), openId = null, confirmId = null, q = "", showAll = false, showUdp = false;
+    const hot = (m) => parseFloat(m) >= 50;
+    const chipHtml = (p) => p.proto === "udp"
+      ? `<span class="chip udp">:${p.port}<i>udp</i></span>`
+      : `<span class="chip">:${p.port}</span>`;
+    const trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+    const chev = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    const radio = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1a10 10 0 0 1 0-14.2M19.1 4.9a10 10 0 0 1 0 14.2M7.8 16.2a6 6 0 0 1 0-8.4M16.2 7.8a6 6 0 0 1 0 8.4"/><circle cx="12" cy="12" r="2"/></svg>';
+    const expo = '<span class="exposed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>Exposed</span>';
+
+    function detail(p){
+      const foot = confirmId === p.id
+        ? `<div class="pk-detfoot confirm"><span class="pk-where">Stop ${p.name}?</span>`
+          + `<button class="pk-cancel" data-cancel="1">Cancel</button>`
+          + `<button class="pk-stop" data-kill="${p.id}">${trash} Stop</button></div>`
+        : `<div class="pk-detfoot"><span class="pk-where">localhost:${p.port}</span>`
+          + `<button class="pk-stop" data-ask="${p.id}">${trash} Stop process</button></div>`;
+      return `<div class="pk-detail">
+        <div class="pk-eyebrow">${radio} Listening on <span>1 port</span></div>
+        <div class="pk-endpoint">${chipHtml(p)}
+          <span class="pk-host ${p.exposed ? "exp" : ""}">${p.exposed ? "0.0.0.0 · exposed" : "127.0.0.1 · local only"}</span></div>
+        <div class="pk-gauges">
+          <div class="pk-gauge"><span>Memory</span><b>${p.mem}</b></div>
+          <div class="pk-gauge"><span>Uptime</span><b>${p.up}</b></div>
+        </div>
+        <div class="pk-meta">
+          <div><span class="k">Executable</span><span class="v">${p.exe}</span></div>
+          <div><span class="k">Project</span><span class="v">${p.proj}</span></div>
+          <div><span class="k">Command</span><span class="v">${p.cmd}</span></div>
+        </div>${foot}</div>`;
+    }
+
+    function resolver(hit, n){
+      if (hit) return `<div class="pk-resolver in">
+        <span class="rtext"><span class="mono">:${n}</span> in use · ${hit.name} <span class="rdim">· PID ${hit.pid}</span></span>
+        <button class="pk-free" data-kill="${hit.id}">${trash} Free port</button></div>`;
+      return `<div class="pk-resolver free">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        <span class="rtext"><span class="mono">:${n}</span> is free — nothing is listening</span></div>`;
+    }
+
+    function render(){
+      const needle = q.trim().toLowerCase();
+      const shown = procs.filter((p) =>
+        (showAll || !p.system) &&
+        (showUdp || p.proto !== "udp") &&
+        (!needle || p.name.toLowerCase().includes(needle) || String(p.port).includes(needle)));
+      document.getElementById("pk-count").textContent = shown.length;
+      document.getElementById("pk-foot").textContent = shown.length + (shown.length === 1 ? " process" : " processes");
+      const numeric = /^\d{1,5}$/.test(needle) && Number(needle) <= 65535;
+      const hit = numeric ? procs.find((p) => p.port === Number(needle)) : null;
+      const banner = numeric ? resolver(hit, Number(needle)) : "";
+      if (!shown.length){
+        rowsEl.innerHTML = banner || `<div class="pk-empty">${needle ? "No ports match your search." : "All clear — nothing listening. Hit rescan to reset."}</div>`;
+        return;
+      }
+      rowsEl.innerHTML = banner + shown.map((p) => {
+        const open = openId === p.id;
+        const icon = p.svg
+          ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">${p.svg}</svg>`
+          : p.ico;
+        return `<div class="pk-item ${open ? "open" : ""}">
+          <button class="row" data-row="${p.id}" aria-expanded="${open}">
+            <span class="ico" style="color:${p.color}">${icon}</span>
+            <span class="meat">
+              <span class="nm"><span class="sd"></span><b>${p.name}</b>${p.fw ? `<span class="fw">${p.fw}</span>` : ""}${p.exposed ? expo : ""}</span>
+              ${chipHtml(p)}
+            </span>
+            <span class="stat">PID ${p.pid}<span class="mem ${hot(p.mem) ? "hot" : ""}" style="display:block;margin-top:4px">${p.mem}</span></span>
+            ${chev}
+          </button>${open ? detail(p) : ""}
+        </div>`;
+      }).join("");
+    }
+
+    rowsEl.addEventListener("click", (e) => {
+      const kill = e.target.closest("[data-kill]");
+      if (kill){ procs = procs.filter((p) => p.id !== kill.dataset.kill); openId = confirmId = null; render(); return; }
+      if (e.target.closest("[data-cancel]")){ confirmId = null; render(); return; }
+      const ask = e.target.closest("[data-ask]");
+      if (ask){ confirmId = ask.dataset.ask; render(); return; }
+      const row = e.target.closest("[data-row]");
+      if (row){
+        openId = openId === row.dataset.row ? null : row.dataset.row;
+        confirmId = null; render();
+        if (openId) rowsEl.querySelector(".pk-item.open")?.scrollIntoView({ block: "nearest" });
+      }
+    });
+
+    const search = document.getElementById("pk-search");
+    search.addEventListener("input", () => { q = search.value; render(); });
+
+    const refreshSvg = document.getElementById("pk-refresh-svg");
+    document.getElementById("pk-refresh").addEventListener("click", () => {
+      refreshSvg.classList.remove("spin");
+      void refreshSvg.offsetWidth;
+      refreshSvg.classList.add("spin");
+      setTimeout(() => refreshSvg.classList.remove("spin"), 620);
+      procs = SEED.slice(); confirmId = null;
+      render();
+    });
+
+    const allBtn = document.getElementById("pk-all");
+    const allLabel = document.getElementById("pk-all-label");
+    allBtn.addEventListener("click", () => {
+      showAll = !showAll;
+      allBtn.classList.toggle("on", showAll);
+      allBtn.setAttribute("aria-pressed", String(showAll));
+      allLabel.textContent = showAll ? "All ports" : "Dev ports";
+      render();
+    });
+
+    const udpBtn = document.getElementById("pk-udp");
+    udpBtn.addEventListener("click", () => {
+      showUdp = !showUdp;
+      udpBtn.classList.toggle("on", showUdp);
+      udpBtn.setAttribute("aria-pressed", String(showUdp));
+      render();
+    });
+
+    render();
+  }
+</script>
+</body>
+</html>

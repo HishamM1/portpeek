@@ -1,0 +1,41 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Add code-signing secrets here when you have a certificate, e.g.:
+          # WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "PortPeek ${{ github.ref_name }}"
+          releaseBody: "Download the installer from the assets below."
+          releaseDraft: true
+          prerelease: false
