@@ -3,8 +3,6 @@ use tauri::{
     WindowEvent,
 };
 
-use crate::state::app_state::AppState;
-
 const MAIN_WINDOW_LABEL: &str = "main";
 const POPUP_GAP_LOGICAL_PX: f64 = 8.0;
 
@@ -18,23 +16,8 @@ pub fn handle_event(window: &Window, event: &WindowEvent) {
             api.prevent_close();
             let _ = window.minimize();
         }
-        WindowEvent::Focused(false) => {
-            if minimize_on_blur(window) {
-                let _ = window.minimize();
-            }
-        }
         _ => {}
     }
-}
-
-fn minimize_on_blur(window: &Window) -> bool {
-    window
-        .app_handle()
-        .state::<AppState>()
-        .settings
-        .lock()
-        .map(|settings| settings.minimize_on_blur)
-        .unwrap_or(false)
 }
 
 pub fn show(app: &AppHandle) -> tauri::Result<()> {
