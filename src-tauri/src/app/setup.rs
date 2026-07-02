@@ -5,15 +5,20 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = crate::app::window::show(app);
         }))
-        .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_autostart::Builder::new().args(["--hidden"]).build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             use tauri::Manager;
 
             let settings = crate::infrastructure::paths::load_settings(app.handle());
             app.manage(crate::state::app_state::AppState::new(settings));
             crate::app::tray::setup(app)?;
+            if !std::env::args().any(|arg| arg == "--hidden") {
+                let _ = crate::app::window::show(app.handle());
+            }
             Ok(())
         })
         .on_window_event(crate::app::window::handle_event)

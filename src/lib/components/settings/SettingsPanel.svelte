@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { getVersion } from "@tauri-apps/api/app";
+  import { relaunch } from "@tauri-apps/plugin-process";
+  import { check, type Update } from "@tauri-apps/plugin-updater";
+  import { onMount } from "svelte";
   import { settings, settingsError, settingsLoading, saveSettings } from "$lib/stores/settings";
   import type { OpenProtocol, Settings, Theme } from "$lib/types/settings";
 
@@ -8,6 +12,64 @@
 
   function value(event: Event): string {
     return (event.currentTarget as HTMLSelectElement).value;
+  }
+
+  let version = $state("");
+  let updateState = $state<"idle" | "checking" | "uptodate" | "available" | "installing" | "error">(
+    "idle",
+  );
+  let pending = $state<Update | null>(null);
+  let updateError = $state("");
+
+  let updateMessage = $derived(
+    updateState === "checking"
+      ? "Checking for updates…"
+      : updateState === "uptodate"
+        ? "You're on the latest version."
+        : updateState === "available"
+          ? `Version ${pending?.version} is available.`
+          : updateState === "installing"
+            ? "Downloading and installing…"
+            : updateState === "error"
+              ? updateError
+              : "Check for a new version.",
+  );
+
+  onMount(async () => {
+    try {
+      version = await getVersion();
+    } catch {
+      /* not running in the desktop app */
+    }
+  });
+
+  async function checkForUpdate(): Promise<void> {
+    updateState = "checking";
+    updateError = "";
+    try {
+      const found = await check();
+      if (found) {
+        pending = found;
+        updateState = "available";
+      } else {
+        updateState = "uptodate";
+      }
+    } catch (error) {
+      updateError = String(error);
+      updateState = "error";
+    }
+  }
+
+  async function installUpdate(): Promise<void> {
+    if (!pending) return;
+    updateState = "installing";
+    try {
+      await pending.downloadAndInstall();
+      await relaunch();
+    } catch (error) {
+      updateError = String(error);
+      updateState = "error";
+    }
   }
 </script>
 
@@ -113,6 +175,47 @@
         update("launchAtStartup", !$settings.launchAtStartup),
       )}
     </div>
+    <div class="flex items-center justify-between gap-4 px-3.5 py-3">
+      <div class="min-w-0">
+        <p class="text-[13px] font-semibold">Minimize when it loses focus</p>
+        <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">Tuck the window to the taskbar when you click away</p>
+      </div>
+      {@render toggle($settings.minimizeOnBlur, "Minimize when it loses focus", () =>
+        update("minimizeOnBlur", !$settings.minimizeOnBlur),
+      )}
+    </div>
+  </div>
+
+  <h2 class="mt-5 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">About</h2>
+  <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)]">
+    <div class="flex items-center justify-between gap-4 px-3.5 py-3">
+      <div class="min-w-0">
+        <p class="text-[13px] font-semibold">Updates</p>
+        <p
+          class={`mt-0.5 text-[11px] ${updateState === "error" ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}
+        >
+          {updateMessage}
+        </p>
+      </div>
+      {#if updateState === "available"}
+        <button
+          type="button"
+          onclick={installUpdate}
+          class="h-8 shrink-0 rounded-md bg-[var(--primary)] px-3 text-xs font-semibold text-[var(--text-inverse)] transition-opacity hover:opacity-90"
+        >
+          Install &amp; restart
+        </button>
+      {:else}
+        <button
+          type="button"
+          onclick={checkForUpdate}
+          disabled={updateState === "checking" || updateState === "installing"}
+          class="h-8 shrink-0 rounded-md border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-xs font-semibold transition-colors hover:bg-[var(--surface-muted)] disabled:opacity-50"
+        >
+          Check for updates
+        </button>
+      {/if}
+    </div>
   </div>
 
   {#if $settingsError}
@@ -121,5 +224,7 @@
     </p>
   {/if}
 
-  <p class="mt-6 text-center font-mono text-[10px] text-[var(--text-muted)]">PortPeek v1.0.0 · Windows</p>
+  <p class="mt-6 text-center font-mono text-[10px] text-[var(--text-muted)]">
+    PortPeek {version ? `v${version}` : ""} · Windows
+  </p>
 </section>

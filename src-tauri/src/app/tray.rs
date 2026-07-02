@@ -28,18 +28,12 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
-                position,
-                rect,
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
             } = event
             {
-                log_error(crate::app::window::toggle(
-                    tray.app_handle(),
-                    position,
-                    rect,
-                ));
+                log_error(crate::app::window::toggle(tray.app_handle()));
             }
         })
         .build(app)?;

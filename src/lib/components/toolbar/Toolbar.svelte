@@ -10,8 +10,14 @@
   import { visiblePorts } from "$lib/stores/filters";
   import { refreshPorts } from "$lib/stores/ports";
   import { hidePopupWindow } from "$lib/tauri/commands";
+  import { slide } from "svelte/transition";
 
   let { settingsOpen = $bindable(false) }: { settingsOpen?: boolean } = $props();
+
+  const swapMs =
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 0
+      : 180;
 
   let refreshing = $state(false);
   async function manualRefresh() {
@@ -23,12 +29,12 @@
 </script>
 
 <header class="shrink-0 border-b border-[var(--border-subtle)] px-3.5 pb-3 pt-3">
-  <div class="flex items-center gap-2.5">
-    <div class="grid size-8 place-items-center rounded-lg bg-[var(--primary)] text-[var(--text-inverse)] shadow-sm">
+  <div class="flex items-center gap-2.5" data-tauri-drag-region>
+    <div class="grid size-8 place-items-center rounded-lg bg-[var(--primary)] text-[var(--text-inverse)] shadow-sm" data-tauri-drag-region>
       <Activity size={17} strokeWidth={2.2} />
     </div>
-    <div class="min-w-0 flex-1">
-      <h1 class="text-sm font-semibold leading-tight tracking-[-0.01em]">PortPeek</h1>
+    <div class="min-w-0 flex-1" data-tauri-drag-region>
+      <h1 class="text-sm font-semibold leading-tight tracking-[-0.01em]" data-tauri-drag-region>PortPeek</h1>
       <p class="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]" aria-live="polite">
         <span class="size-1.5 rounded-full bg-[var(--success)]"></span>
         {$visiblePorts.length} listening
@@ -50,7 +56,7 @@
   </div>
 
   {#if !settingsOpen}
-    <div class="mt-3 flex gap-2">
+    <div class="mt-3 flex gap-2" transition:slide={{ duration: swapMs }}>
       <SearchBox />
       <ShowAllToggle />
       <ProtocolToggle />

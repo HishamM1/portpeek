@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { fade, fly } from "svelte/transition";
+  import { fly } from "svelte/transition";
   import AppShell from "$lib/components/layout/AppShell.svelte";
   import PopupFrame from "$lib/components/layout/PopupFrame.svelte";
   import PortList from "$lib/components/ports/PortList.svelte";
@@ -10,6 +10,11 @@
 
   let settingsOpen = $state(false);
 
+  const swapMs =
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 0
+      : 180;
+
   onMount(() => {
     void loadSettings();
   });
@@ -18,14 +23,16 @@
 <AppShell>
   <PopupFrame>
     <Toolbar bind:settingsOpen />
-    {#if settingsOpen}
-      <div class="min-h-0 flex-1" in:fly={{ x: 12, duration: 140 }} out:fade={{ duration: 90 }}>
-        <SettingsPanel />
-      </div>
-    {:else}
-      <div class="min-h-0 flex-1" in:fade={{ duration: 120 }} out:fade={{ duration: 80 }}>
-        <PortList />
-      </div>
-    {/if}
+    <div class="relative min-h-0 flex-1">
+      {#if settingsOpen}
+        <div class="absolute inset-0" in:fly={{ x: 16, duration: swapMs }} out:fly={{ x: 16, duration: swapMs }}>
+          <SettingsPanel />
+        </div>
+      {:else}
+        <div class="absolute inset-0" in:fly={{ x: -16, duration: swapMs }} out:fly={{ x: -16, duration: swapMs }}>
+          <PortList />
+        </div>
+      {/if}
+    </div>
   </PopupFrame>
 </AppShell>

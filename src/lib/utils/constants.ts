@@ -8,5 +8,6 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   launchAtStartup: false,
   confirmBeforeKill: true,
+  minimizeOnBlur: false,
   defaultOpenProtocol: "http",
 };
