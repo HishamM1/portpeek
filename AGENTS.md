@@ -88,7 +88,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Auto-update:** in-app "Check for updates" (download, verify, install, relaunch).
 - **Around the app:** landing page with an interactive demo; CI (release + winget); auto-generated icons/tray.
 - *(In flight, PR #1)* smarter **system-port classification by process identity**; settings **dropdown chevrons**.
-- *(In flight, `feat/telemetry`)* **privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. Full event catalog + privacy rules: **[`docs/analytics.md`](docs/analytics.md)**.
+- *(In flight, `feat/telemetry`)* **privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy.
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
 
@@ -166,7 +166,7 @@ cargo build --manifest-path src-tauri/Cargo.toml    # compile-check (also valida
 - **System-port classification = process identity** (owner SID / kernel / `%SystemRoot%`), not port number.
 - **Counts come from one source** (`scopedPorts`/`visiblePorts`) — never read a raw store for a count that a filtered list also shows.
 - **Auto-update** via tauri-plugin-updater (minisign key; endpoint = GitHub `latest.json`).
-- **Telemetry = Aptabase, opt-out (on by default), anonymous.** Key is injected via the `APTABASE_KEY` build-time env var (not committed — it ships in the binary anyway, so it's not secret); no key at build → plugin isn't initialized. **All tracking goes through the wrappers** (`src/lib/analytics.ts` frontend, `src-tauri/src/app/analytics.rs` for the few Rust events) — never call `trackEvent`/`track_event` directly. Every event gates on `settings.shareUsage`. Props are strings/numbers only; never PII, ports, paths, PIDs, process names, URLs, or query text. New event → add it to **[`docs/analytics.md`](docs/analytics.md)**.
+- **Telemetry = Aptabase, opt-out (on by default), anonymous.** Key is injected via the `APTABASE_KEY` build-time env var (not committed — it ships in the binary anyway, so it's not secret); no key at build → plugin isn't initialized. **All tracking goes through the wrappers** (`src/lib/analytics.ts` frontend, `src-tauri/src/app/analytics.rs` for the few Rust events) — never call `trackEvent`/`track_event` directly. Every event gates on `settings.shareUsage`. Props are strings/numbers only; never PII, ports, paths, PIDs, process names, URLs, or query text.
 - Global element CSS resets belong in **`@layer base`**.
 
 ## 7. Quick reference

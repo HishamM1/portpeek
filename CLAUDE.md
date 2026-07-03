@@ -28,7 +28,7 @@ PortPeek: a **Windows tray utility** that shows what's listening on local ports 
 - **Version bumps:** update `package.json` + `src-tauri/Cargo.toml` + `src-tauri/tauri.conf.json` together, then tag `vX.Y.Z`.
 - **Rust changes** need `pnpm tauri dev` rebuild, not a hot reload.
 - **Telemetry key:** set `APTABASE_KEY` in your shell before `pnpm tauri dev`/`build` to send events; without it the Aptabase plugin isn't initialized and tracking silently no-ops. The key ships in the binary (not secret) but is never committed — CI injects it.
-- **Analytics:** all events go through the wrappers (`src/lib/analytics.ts`, `src-tauri/src/app/analytics.rs`) — never call `trackEvent`/`track_event` directly. Props are strings/numbers only, no PII. Catalog + rules: `docs/analytics.md`.
+- **Analytics:** all events go through the wrappers (`src/lib/analytics.ts`, `src-tauri/src/app/analytics.rs`) — never call `trackEvent`/`track_event` directly. Props are strings/numbers only, no PII.
 - **Stubs are not wired:** `domain/ports/filters.rs`, `infrastructure/cache.rs`, `domain/detection/types.rs`, `domain/processes/*` are TODO placeholders.
 
 ## Settled — don't re-litigate
