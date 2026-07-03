@@ -46,7 +46,9 @@ Frontend is Svelte 5 + Vite; the backend is Rust (Tauri v2). See [CONTRIBUTING.m
 
 ## Privacy
 
-PortPeek reads your machine's listening ports locally. Nothing leaves your computer.
+PortPeek reads your ports **locally** — process names, paths, ports, and project details never leave your machine.
+
+It sends **anonymous, opt-out usage analytics** (via [Aptabase](https://aptabase.com)) so we can prioritize what to build: counts and enums only — which features get used, whether scans succeed, roughly how many ports you run. **Never** ports, paths, PIDs, process names, URLs, or your search text. Turn it off anytime under **Settings › Privacy › Share anonymous usage**. Full details: [`docs/analytics.md`](docs/analytics.md).
 
 ## License
 

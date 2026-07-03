@@ -9,6 +9,7 @@ pub struct Settings {
     pub launch_at_startup: bool,
     pub confirm_before_kill: bool,
     pub default_open_protocol: OpenProtocol,
+    pub share_usage: bool,
 }
 
 impl Default for Settings {
@@ -20,6 +21,7 @@ impl Default for Settings {
             launch_at_startup: false,
             confirm_before_kill: true,
             default_open_protocol: OpenProtocol::Http,
+            share_usage: true,
         }
     }
 }

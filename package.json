@@ -15,6 +15,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@aptabase/tauri": "^0.4.1",
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@lucide/svelte": "^1.22.0",

@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { trackFilterChanged } from "$lib/analytics";
   import { settings, saveSettings } from "$lib/stores/settings";
 
   function toggle(): void {
-    void saveSettings({ ...$settings, showSystemPorts: !$settings.showSystemPorts });
+    const next = !$settings.showSystemPorts;
+    void saveSettings({ ...$settings, showSystemPorts: next });
+    trackFilterChanged({ filter_type: "system_ports", enabled: next ? 1 : 0 });
   }
 </script>
 

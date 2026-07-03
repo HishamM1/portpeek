@@ -1,7 +1,7 @@
 pub fn run() {
     crate::infrastructure::logging::init();
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = crate::app::window::show(app);
         }))
@@ -9,7 +9,13 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_process::init());
+
+    if let Some(key) = option_env!("APTABASE_KEY") {
+        builder = builder.plugin(tauri_plugin_aptabase::Builder::new(key).build());
+    }
+
+    builder
         .setup(|app| {
             use tauri::Manager;
 
