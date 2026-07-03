@@ -11,3 +11,7 @@ vite.config.ts.timestamp-*
 
 # winget manifests generated locally by wingetcreate (belong in the winget-pkgs PR, not here)
 /manifests
+
+# Local-only agent/session guides (kept out of the repo)
+AGENTS.md
+CLAUDE.md
