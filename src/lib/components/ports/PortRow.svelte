@@ -10,12 +10,22 @@
   import PortBadge from "$lib/components/ports/PortBadge.svelte";
   import PortDetails from "$lib/components/ports/PortDetails.svelte";
   import type { PortItem } from "$lib/types/port";
+  import { trackPortDetailsOpened } from "$lib/analytics";
   import { formatMemory } from "$lib/utils/format";
   import { isExposed, portSource } from "$lib/utils/ports.js";
 
   let { ports }: { ports: PortItem[] } = $props();
   let expanded = $state(false);
   let port = $derived(ports[0]);
+
+  function toggleDetails(): void {
+    expanded = !expanded;
+    if (expanded)
+      trackPortDetailsOpened({
+        has_framework: port.framework ? 1 : 0,
+        has_favicon: port.cachedFaviconPath || port.faviconUrl ? 1 : 0,
+      });
+  }
   let listeners = $derived([...new Map(ports.map((item) => [item.port, item])).values()]);
   let label = $derived(port.displayName ?? port.processName ?? "Unknown process");
   let exposed = $derived(listeners.some((listener) => isExposed(listener.address)));
@@ -28,7 +38,7 @@
     class={`relative flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors duration-150 hover:bg-[var(--surface-muted)] ${expanded ? "before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-r before:bg-[var(--primary)]" : ""}`}
     aria-expanded={expanded}
     aria-label={`${expanded ? "Collapse" : "Expand"} ${label} process details`}
-    onclick={() => (expanded = !expanded)}
+    onclick={toggleDetails}
   >
     <Favicon {port} {label} />
     <div class="min-w-0 flex-1">
