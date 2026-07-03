@@ -7,6 +7,6 @@ export interface Settings {
   theme: Theme;
   launchAtStartup: boolean;
   confirmBeforeKill: boolean;
-  minimizeOnBlur: boolean;
   defaultOpenProtocol: OpenProtocol;
+  shareUsage: boolean;
 }

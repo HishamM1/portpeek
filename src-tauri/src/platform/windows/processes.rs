@@ -30,6 +30,7 @@ pub fn enrich(items: &mut [PortItem]) {
             .with_cwd(UpdateKind::Always)
             .with_cmd(UpdateKind::Always)
             .with_exe(UpdateKind::Always)
+            .with_user(UpdateKind::Always)
             .without_tasks(),
     );
 
@@ -55,7 +56,8 @@ pub fn enrich(items: &mut [PortItem]) {
         });
         item.executable_path = process.exe().map(path_string);
         item.working_directory = working_directory;
-        item.is_system_port = is_system_process(&process_name, item.port, pid);
+        let sid = process.user_id().map(|uid| uid.to_string());
+        item.is_system_port = is_system_process(sid.as_deref(), process.exe(), &process_name, pid);
     }
 }
 
@@ -114,8 +116,21 @@ fn display_name(process_name: &str, cwd: Option<&Path>) -> Option<String> {
     Some(process_name.trim_end_matches(".exe").to_string())
 }
 
-fn is_system_process(name: &str, port: u16, pid: u32) -> bool {
-    port < 1024 || pid <= 4 || protected_name(name)
+// A listener is a "system" port when its owning process is a Windows OS process:
+// running under a built-in system account, the kernel (pid <= 4), or an executable
+// inside the Windows directory. Owner account is the authoritative signal.
+fn is_system_process(sid: Option<&str>, exe: Option<&Path>, name: &str, pid: u32) -> bool {
+    pid <= 4
+        || matches!(sid, Some("S-1-5-18" | "S-1-5-19" | "S-1-5-20"))
+        || exe.is_some_and(is_under_system_root)
+        || protected_name(name)
+}
+
+fn is_under_system_root(exe: &Path) -> bool {
+    let root = std::env::var("SystemRoot")
+        .unwrap_or_else(|_| "C:\\Windows".to_string())
+        .to_ascii_lowercase();
+    exe.to_string_lossy().to_ascii_lowercase().starts_with(&root)
 }
 
 fn protected_name(name: &str) -> bool {
@@ -142,9 +157,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn protects_windows_services_and_privileged_ports() {
-        assert!(is_system_process("svchost.exe", 5173, 900));
-        assert!(is_system_process("node.exe", 80, 900));
-        assert!(!is_system_process("node.exe", 5173, 900));
+    fn classifies_system_by_account_and_location() {
+        // Built-in system accounts (SYSTEM / LOCAL SERVICE / NETWORK SERVICE)
+        assert!(is_system_process(Some("S-1-5-18"), None, "svchost.exe", 900));
+        assert!(is_system_process(Some("S-1-5-19"), None, "spoolsv.exe", 900));
+        // Kernel
+        assert!(is_system_process(None, None, "System", 4));
+        // Executable inside the Windows directory, even without an SID
+        let sys_exe = format!(
+            "{}\\System32\\spoolsv.exe",
+            std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
+        );
+        assert!(is_system_process(None, Some(Path::new(&sys_exe)), "spoolsv.exe", 900));
+        // A normal dev server owned by the user, running from a project folder
+        assert!(!is_system_process(
+            Some("S-1-5-21-1-2-3-1001"),
+            Some(Path::new("C:\\Projects\\shop\\node.exe")),
+            "node.exe",
+            5173,
+        ));
     }
 }

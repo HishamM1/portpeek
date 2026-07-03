@@ -9,6 +9,7 @@
     "core:default",
     "core:window:allow-start-dragging",
     "updater:default",
-    "process:default"
+    "process:default",
+    "aptabase:allow-track-event"
   ]
 }

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@aptabase/tauri':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@fontsource-variable/geist':
         specifier: ^5.2.9
         version: 5.2.9
@@ -62,6 +65,9 @@ importers:
         version: 8.1.0(jiti@2.7.0)
 
 packages:
+
+  '@aptabase/tauri@0.4.1':
+    resolution: {integrity: sha512-ZjCtPN1Tw0y90nxMLR64UqFjgikxfc9NZouxqXlqZFkfpF8D/tPf1xUn0Anu8nvERGND/hAkO3x7ZLyLGI1HRg==}
 
   '@emnapi/core@1.11.1':
     resolution: {integrity: sha512-RSvbQmHzdKzNsLYa/wHrbc3KN4sYLKAdPZxqiM2HATqv/SBk2/ENSHpvXGaLOMcsAyz0poEGqkmmKYG3OWiJEQ==}
@@ -315,6 +321,10 @@ packages:
     resolution: {integrity: sha512-hItDHuIIlEV61R+faXu66s1K36aTurO/Qw0e45Vskz57gXl9pWOT6eg3zmcEui6CZXddbN7zd41bwmvag4JGwQ==}
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
+
+  '@tauri-apps/api@1.6.0':
+    resolution: {integrity: sha512-rqI++FWClU5I2UBp4HXFvl+sBWkdigBkxnpJDQUWttNyG7IZP4FwQGhTNL5EOw0vI8i6eSAJ5frLqO7n7jbJdg==}
+    engines: {node: '>= 14.6.0', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
 
   '@tauri-apps/api@2.11.1':
     resolution: {integrity: sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==}
@@ -698,6 +708,10 @@ packages:
 
 snapshots:
 
+  '@aptabase/tauri@0.4.1':
+    dependencies:
+      '@tauri-apps/api': 1.6.0
+
   '@emnapi/core@1.11.1':
     dependencies:
       '@emnapi/wasi-threads': 1.2.2
@@ -883,6 +897,8 @@ snapshots:
       '@tailwindcss/oxide': 4.3.1
       tailwindcss: 4.3.1
       vite: 8.1.0(jiti@2.7.0)
+
+  '@tauri-apps/api@1.6.0': {}
 
   '@tauri-apps/api@2.11.1': {}
 

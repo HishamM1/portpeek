@@ -1,6 +1,16 @@
 <script lang="ts">
   import Search from "@lucide/svelte/icons/search";
+  import { lengthBucket, trackSearchUsed } from "$lib/analytics";
   import { query } from "$lib/stores/filters";
+
+  let timer: ReturnType<typeof setTimeout>;
+  $effect(() => {
+    const len = $query.trim().length;
+    clearTimeout(timer);
+    if (len === 0) return;
+    timer = setTimeout(() => trackSearchUsed({ query_length_bucket: lengthBucket(len) }), 800);
+    return () => clearTimeout(timer);
+  });
 </script>
 
 <label class="relative block flex-1">

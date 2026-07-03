@@ -1,6 +1,6 @@
 {
   "name": "portpeek-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A Windows-first localhost port tray utility.",
   "type": "module",
   "packageManager": "pnpm@11.8.0",
@@ -15,6 +15,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@aptabase/tauri": "^0.4.1",
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@lucide/svelte": "^1.22.0",

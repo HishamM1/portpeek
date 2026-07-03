@@ -14,7 +14,7 @@
   let groups = $derived(groupPorts($visiblePorts));
 
   onMount(() => {
-    void refreshPorts();
+    void refreshPorts("initial_load");
     let timer: ReturnType<typeof setInterval>;
     const unsubscribe = settings.subscribe((value) => {
       clearInterval(timer);
@@ -31,12 +31,15 @@
   {#if $portsLoading && $ports.length === 0}
     <LoadingState />
   {:else if $portsError && $ports.length === 0}
-    <ErrorState message={$portsError} onRetry={refreshPorts} />
+    <ErrorState message={$portsError} onRetry={() => refreshPorts("manual_refresh")} />
   {:else}
     <PortResolver />
     {#if groups.length === 0}
       {#if !numericQuery}
-        <EmptyState message={$query ? "No ports match your search." : "No development ports are listening."} />
+        <EmptyState
+          reason={$query ? "no_search_match" : "no_ports"}
+          message={$query ? "No ports match your search." : "No development ports are listening."}
+        />
       {/if}
     {:else}
       <ul class="min-h-0 flex-1 overflow-y-auto" aria-live="polite">

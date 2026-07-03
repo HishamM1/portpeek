@@ -7,16 +7,22 @@
   import SettingsPanel from "$lib/components/settings/SettingsPanel.svelte";
   import Toolbar from "$lib/components/toolbar/Toolbar.svelte";
   import { loadSettings } from "$lib/stores/settings";
+  import { trackAppStarted, trackSettingsOpened } from "$lib/analytics";
 
   let settingsOpen = $state(false);
+
+  $effect(() => {
+    if (settingsOpen) trackSettingsOpened();
+  });
 
   const swapMs =
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ? 0
       : 180;
 
-  onMount(() => {
-    void loadSettings();
+  onMount(async () => {
+    await loadSettings();
+    trackAppStarted();
   });
 </script>
 

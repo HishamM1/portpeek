@@ -3,11 +3,15 @@
   import { relaunch } from "@tauri-apps/plugin-process";
   import { check, type Update } from "@tauri-apps/plugin-updater";
   import { onMount } from "svelte";
+  import { trackSettingChanged, trackUpdateChecked, trackUpdateInstalled } from "$lib/analytics";
   import { settings, settingsError, settingsLoading, saveSettings } from "$lib/stores/settings";
   import type { OpenProtocol, Settings, Theme } from "$lib/types/settings";
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]): void {
     void saveSettings({ ...$settings, [key]: value });
+    if (key !== "shareUsage") {
+      trackSettingChanged({ setting_key: key, value: typeof value === "boolean" ? (value ? 1 : 0) : value });
+    }
   }
 
   function value(event: Event): string {
@@ -46,6 +50,7 @@
   async function checkForUpdate(): Promise<void> {
     updateState = "checking";
     updateError = "";
+    trackUpdateChecked();
     try {
       const found = await check();
       if (found) {
@@ -65,6 +70,7 @@
     updateState = "installing";
     try {
       await pending.downloadAndInstall();
+      await trackUpdateInstalled();
       await relaunch();
     } catch (error) {
       updateError = String(error);
@@ -93,6 +99,20 @@
   </button>
 {/snippet}
 
+{#snippet chevron()}
+  <svg
+    class="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-[var(--text-muted)]"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+{/snippet}
+
 <section class="h-full overflow-y-auto px-4 pb-4 pt-3" aria-label="Settings">
   <h2 class="px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Display</h2>
   <div class="mt-2 divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)]">
@@ -101,16 +121,19 @@
         <p class="text-[13px] font-semibold">Theme</p>
         <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">Match Windows or choose a mode</p>
       </div>
-      <select
-        disabled={$settingsLoading}
-        value={$settings.theme}
-        onchange={(event) => update("theme", value(event) as Theme)}
-        class="h-8 rounded-md border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-xs"
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
+      <div class="relative shrink-0">
+        <select
+          disabled={$settingsLoading}
+          value={$settings.theme}
+          onchange={(event) => update("theme", value(event) as Theme)}
+          class="h-8 appearance-none rounded-md border border-[var(--border-strong)] bg-[var(--surface)] pl-2 pr-7 text-xs"
+        >
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        {@render chevron()}
+      </div>
     </div>
     <div class="flex items-center justify-between gap-4 px-3.5 py-3">
       <div class="min-w-0">
@@ -130,32 +153,38 @@
         <p class="text-[13px] font-semibold">Refresh interval</p>
         <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">How often PortPeek rescans</p>
       </div>
-      <select
-        disabled={$settingsLoading}
-        value={$settings.refreshIntervalMs}
-        onchange={(event) => update("refreshIntervalMs", Number(value(event)))}
-        class="h-8 rounded-md border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-xs"
-      >
-        <option value={1000}>1 second</option>
-        <option value={2000}>2 seconds</option>
-        <option value={5000}>5 seconds</option>
-        <option value={10000}>10 seconds</option>
-      </select>
+      <div class="relative shrink-0">
+        <select
+          disabled={$settingsLoading}
+          value={$settings.refreshIntervalMs}
+          onchange={(event) => update("refreshIntervalMs", Number(value(event)))}
+          class="h-8 appearance-none rounded-md border border-[var(--border-strong)] bg-[var(--surface)] pl-2 pr-7 text-xs"
+        >
+          <option value={1000}>1 second</option>
+          <option value={2000}>2 seconds</option>
+          <option value={5000}>5 seconds</option>
+          <option value={10000}>10 seconds</option>
+        </select>
+        {@render chevron()}
+      </div>
     </div>
     <div class="flex items-center justify-between gap-4 px-3.5 py-3">
       <div class="min-w-0">
         <p class="text-[13px] font-semibold">Default protocol</p>
         <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">Used by Open and Copy URL</p>
       </div>
-      <select
-        disabled={$settingsLoading}
-        value={$settings.defaultOpenProtocol}
-        onchange={(event) => update("defaultOpenProtocol", value(event) as OpenProtocol)}
-        class="h-8 rounded-md border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-xs"
-      >
-        <option value="http">HTTP</option>
-        <option value="https">HTTPS</option>
-      </select>
+      <div class="relative shrink-0">
+        <select
+          disabled={$settingsLoading}
+          value={$settings.defaultOpenProtocol}
+          onchange={(event) => update("defaultOpenProtocol", value(event) as OpenProtocol)}
+          class="h-8 appearance-none rounded-md border border-[var(--border-strong)] bg-[var(--surface)] pl-2 pr-7 text-xs"
+        >
+          <option value="http">HTTP</option>
+          <option value="https">HTTPS</option>
+        </select>
+        {@render chevron()}
+      </div>
     </div>
     <div class="flex items-center justify-between gap-4 px-3.5 py-3">
       <div class="min-w-0">
@@ -175,13 +204,17 @@
         update("launchAtStartup", !$settings.launchAtStartup),
       )}
     </div>
+  </div>
+
+  <h2 class="mt-5 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Privacy</h2>
+  <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)]">
     <div class="flex items-center justify-between gap-4 px-3.5 py-3">
       <div class="min-w-0">
-        <p class="text-[13px] font-semibold">Minimize when it loses focus</p>
-        <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">Tuck the window to the taskbar when you click away</p>
+        <p class="text-[13px] font-semibold">Share anonymous usage</p>
+        <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">Anonymous events only — never ports, paths, or process names</p>
       </div>
-      {@render toggle($settings.minimizeOnBlur, "Minimize when it loses focus", () =>
-        update("minimizeOnBlur", !$settings.minimizeOnBlur),
+      {@render toggle($settings.shareUsage, "Share anonymous usage", () =>
+        update("shareUsage", !$settings.shareUsage),
       )}
     </div>
   </div>

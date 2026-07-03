@@ -8,8 +8,8 @@ pub struct Settings {
     pub theme: Theme,
     pub launch_at_startup: bool,
     pub confirm_before_kill: bool,
-    pub minimize_on_blur: bool,
     pub default_open_protocol: OpenProtocol,
+    pub share_usage: bool,
 }
 
 impl Default for Settings {
@@ -20,8 +20,8 @@ impl Default for Settings {
             theme: Theme::System,
             launch_at_startup: false,
             confirm_before_kill: true,
-            minimize_on_blur: false,
             default_open_protocol: OpenProtocol::Http,
+            share_usage: true,
         }
     }
 }

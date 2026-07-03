@@ -1,6 +1,6 @@
 [package]
 name = "portpeek"
-version = "1.0.1"
+version = "1.0.2"
 description = "A Windows-first localhost port tray utility."
 edition = "2021"
 
@@ -23,6 +23,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-opener = "2"
+tauri-plugin-aptabase = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-clipboard-manager = "2"

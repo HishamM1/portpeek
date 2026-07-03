@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from "$lib/utils/constants";
 export const settings = writable<Settings>({ ...DEFAULT_SETTINGS });
 export const settingsLoading = writable(false);
 export const settingsError = writable<string | null>(null);
+export const settingsLoaded = writable(false);
 
 export async function loadSettings(): Promise<void> {
   settingsLoading.set(true);
@@ -18,6 +19,7 @@ export async function loadSettings(): Promise<void> {
     settingsError.set(String(error));
   } finally {
     settingsLoading.set(false);
+    settingsLoaded.set(true);
   }
 }
 

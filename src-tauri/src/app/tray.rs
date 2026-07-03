@@ -22,7 +22,13 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            OPEN_MENU_ID => log_error(crate::app::window::show(app)),
+            OPEN_MENU_ID => {
+                let result = crate::app::window::show(app);
+                if result.is_ok() {
+                    crate::app::analytics::track_tray_open(app, "menu");
+                }
+                log_error(result);
+            }
             QUIT_MENU_ID => app.exit(0),
             _ => {}
         })
@@ -33,7 +39,11 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
                 ..
             } = event
             {
-                log_error(crate::app::window::toggle(tray.app_handle()));
+                let result = crate::app::window::toggle(tray.app_handle());
+                if let Ok(true) = result {
+                    crate::app::analytics::track_tray_open(tray.app_handle(), "left_click");
+                }
+                log_error(result.map(|_| ()));
             }
         })
         .build(app)?;
@@ -41,7 +51,7 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
     Ok(())
 }
 
-fn log_error(result: tauri::Result<()>) {
+fn log_error<T>(result: tauri::Result<T>) {
     if let Err(error) = result {
         tracing::error!(%error, "popup window operation failed");
     }
