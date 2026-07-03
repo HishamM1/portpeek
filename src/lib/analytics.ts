@@ -3,7 +3,6 @@ import { get } from "svelte/store";
 import { settings, settingsLoaded } from "$lib/stores/settings";
 
 // Central analytics wrapper — import the typed helpers below, never call trackEvent directly.
-// Event catalog and privacy rules: docs/analytics.md.
 
 type Props = Record<string, string | number>;
 
