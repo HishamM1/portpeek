@@ -9,4 +9,5 @@ export interface Settings {
   confirmBeforeKill: boolean;
   minimizeOnBlur: boolean;
   defaultOpenProtocol: OpenProtocol;
+  shareUsage: boolean;
 }

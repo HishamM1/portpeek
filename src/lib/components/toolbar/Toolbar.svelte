@@ -23,7 +23,7 @@
   async function manualRefresh() {
     if (refreshing) return;
     refreshing = true;
-    await Promise.all([refreshPorts(), new Promise((resolve) => setTimeout(resolve, 600))]);
+    await Promise.all([refreshPorts("manual_refresh"), new Promise((resolve) => setTimeout(resolve, 600))]);
     refreshing = false;
   }
 </script>

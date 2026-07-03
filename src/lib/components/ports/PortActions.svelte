@@ -4,6 +4,16 @@
   import Hash from "@lucide/svelte/icons/hash";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import IconButton from "$lib/components/shared/IconButton.svelte";
+  import {
+    errorType,
+    trackKillCancelled,
+    trackKillConfirmed,
+    trackKillFailed,
+    trackKillRequested,
+    trackKillSucceeded,
+    trackPortOpened,
+    trackPortUrlCopied,
+  } from "$lib/analytics";
   import { refreshPorts } from "$lib/stores/ports";
   import { settings } from "$lib/stores/settings";
   import {
@@ -28,6 +38,8 @@
   let confirming = $state(false);
   let label = $derived(port.displayName ?? port.processName ?? `PID ${port.pid}`);
   let portCount = $derived(processPorts.length || 1);
+  let hasFramework = $derived<0 | 1>(port.framework ? 1 : 0);
+  let hasFavicon = $derived<0 | 1>(port.cachedFaviconPath || port.faviconUrl ? 1 : 0);
   let endpointLabel = $derived(
     portCount > 1 ? processPorts.map((p) => `:${p}`).join("  ") : `localhost:${port.port}`,
   );
@@ -38,9 +50,20 @@
     try {
       await operation();
       if (action !== "open") message = action === "kill" ? "Process stopped" : "Copied";
-      if (action === "kill") await refreshPorts();
+      if (action === "open")
+        trackPortOpened({
+          protocol: $settings.defaultOpenProtocol,
+          has_framework: hasFramework,
+          has_favicon: hasFavicon,
+        });
+      else if (action === "url") trackPortUrlCopied({ protocol: $settings.defaultOpenProtocol });
+      else if (action === "kill") {
+        trackKillSucceeded({ port_count: portCount, has_framework: hasFramework });
+        await refreshPorts();
+      }
     } catch (error) {
       message = String(error);
+      if (action === "kill") trackKillFailed({ error_type: errorType(error) });
     } finally {
       busy = null;
     }
@@ -48,6 +71,7 @@
 
   function requestKill(): void {
     if (port.pid === null) return;
+    trackKillRequested();
     if ($settings.confirmBeforeKill) {
       confirming = true;
       return;
@@ -57,7 +81,13 @@
 
   function confirmKill(): void {
     confirming = false;
+    trackKillConfirmed();
     void run("kill", () => killProcess(port.pid!));
+  }
+
+  function cancelKill(): void {
+    confirming = false;
+    trackKillCancelled();
   }
 
   function autofocus(node: HTMLElement): void {
@@ -67,7 +97,7 @@
 
 <svelte:window
   onkeydown={(event) => {
-    if (confirming && event.key === "Escape") confirming = false;
+    if (confirming && event.key === "Escape") cancelKill();
   }}
 />
 
@@ -103,7 +133,7 @@
       </span>
       <button
         type="button"
-        onclick={() => (confirming = false)}
+        onclick={cancelKill}
         class="inline-flex h-8 shrink-0 items-center rounded-lg px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)]"
       >
         Cancel

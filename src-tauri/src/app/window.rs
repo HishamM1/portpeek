@@ -49,17 +49,19 @@ pub fn hide(app: &AppHandle) -> tauri::Result<()> {
     main_window(app)?.hide()
 }
 
-pub fn toggle(app: &AppHandle) -> tauri::Result<()> {
+pub fn toggle(app: &AppHandle) -> tauri::Result<bool> {
     let window = main_window(app)?;
 
     if window.is_visible()? && !window.is_minimized()? {
-        return window.minimize();
+        window.minimize()?;
+        return Ok(false);
     }
 
     position_default(&window)?;
     window.unminimize()?;
     window.show()?;
-    window.set_focus()
+    window.set_focus()?;
+    Ok(true)
 }
 
 fn main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {

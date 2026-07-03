@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { trackFilterChanged } from "$lib/analytics";
   import { showUdp } from "$lib/stores/filters";
 </script>
 
@@ -6,7 +7,10 @@
   type="button"
   aria-pressed={$showUdp}
   title={$showUdp ? "Showing UDP sockets — click to hide" : "Show UDP sockets (hidden by default)"}
-  onclick={() => ($showUdp = !$showUdp)}
+  onclick={() => {
+    $showUdp = !$showUdp;
+    trackFilterChanged({ filter_type: "udp", enabled: $showUdp ? 1 : 0 });
+  }}
   class={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[10px] font-medium transition-colors ${
     $showUdp
       ? "border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary)]"

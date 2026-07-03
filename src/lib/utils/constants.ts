@@ -10,4 +10,5 @@ export const DEFAULT_SETTINGS: Settings = {
   confirmBeforeKill: true,
   minimizeOnBlur: false,
   defaultOpenProtocol: "http",
+  shareUsage: true,
 };
