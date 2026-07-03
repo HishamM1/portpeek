@@ -81,7 +81,7 @@ Only `initial_load` and `manual_refresh` emit — **auto-refresh scans are silen
 
 ```ts
 // GOOD
-trackPortsScanCompleted({ trigger: "manual_refresh", ports_count: 12, dev_server_count: 3, framework_count: 2, duration_ms: 84 });
+trackScanCompleted({ trigger: "manual_refresh", ports_count: 12, dev_server_count: 3, framework_count: 2, duration_ms: 84 });
 trackPortOpened({ protocol: "http", has_framework: 1, has_favicon: 0 });
 
 // BAD — never do this
