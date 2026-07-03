@@ -70,7 +70,7 @@
     updateState = "installing";
     try {
       await pending.downloadAndInstall();
-      trackUpdateInstalled();
+      await trackUpdateInstalled();
       await relaunch();
     } catch (error) {
       updateError = String(error);

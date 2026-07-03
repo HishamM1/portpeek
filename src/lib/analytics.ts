@@ -1,15 +1,15 @@
 import { trackEvent } from "@aptabase/tauri";
 import { get } from "svelte/store";
-import { settings } from "$lib/stores/settings";
+import { settings, settingsLoaded } from "$lib/stores/settings";
 
 // Central analytics wrapper — import the typed helpers below, never call trackEvent directly.
 // Event catalog and privacy rules: docs/analytics.md.
 
 type Props = Record<string, string | number>;
 
-function track(name: string, props?: Props): void {
-  if (!get(settings).shareUsage) return;
-  void trackEvent(name, props).catch(() => {});
+function track(name: string, props?: Props): Promise<void> {
+  if (!get(settingsLoaded) || !get(settings).shareUsage) return Promise.resolve();
+  return trackEvent(name, props).catch(() => {});
 }
 
 export function lengthBucket(len: number): "0" | "1_3" | "4_10" | "10_plus" {
