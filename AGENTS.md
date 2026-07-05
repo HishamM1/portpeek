@@ -87,8 +87,8 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Window/tray:** tray icon + menu, borderless popup that opens bottom-right, lives in the taskbar, draggable by the header, single-instance; shows on manual launch, hidden on `--hidden` autostart.
 - **Auto-update:** in-app "Check for updates" (download, verify, install, relaunch).
 - **Around the app:** landing page with an interactive demo; CI (release + winget); auto-generated icons/tray.
-- *(In flight, PR #1)* smarter **system-port classification by process identity**; settings **dropdown chevrons**.
-- *(In flight, `feat/telemetry`)* **privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy.
+- **v1.0.2:** SID-based **system-port classification by process identity** (owner account / kernel / `%SystemRoot%`, not port number); removed "minimize when it loses focus" (looping bug); settings **dropdown chevrons**.
+- **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
 
@@ -96,9 +96,9 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 
 The current/next-version tracker. **Keep it accurate on every release** — it's how the next session knows where things stand and what's slated next.
 
-- **Shipped:** **v1.0.1** (on `main`).
-- **Next / in flight:** **v1.0.2** — `release/1.0.2` (PR #1): SID-based system-port detection, removed minimize-on-blur, settings dropdown chevrons, `ci.yml`.
-- **Planned after (unassigned to a version):** pull from Issues (`enhancement`) — #2 open-in-editor, #3 CLI, #4 code signing, #5 telemetry. Pin scope to a **GitHub milestone** when you schedule a version.
+- **Shipped:** **v1.0.2** (on `main`, tagged and released).
+- **Next / in flight:** **v1.0.3** — `release/1.0.3`: #2 open-in-editor & copy actions, #3 `portpeek` CLI companion.
+- **Planned after (unassigned to a version):** #4 Windows code signing (SmartScreen) — blocked on an owner decision (SignPath Foundation / Azure Trusted Signing / EV cert) + secrets. Pin scope to a **GitHub milestone** when you schedule a version.
 
 **On each release:**
 1. Bump the version in all three files (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) and tag `vX.Y.Z`.
@@ -106,21 +106,22 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 
 ## 4. Implementation status (honest)
 
-**Shipped:** `main` = **v1.0.1** — the **Current features** list above is what's live (minus the "in flight" line).
+**Shipped:** `main` = **v1.0.2** — the **Current features** list above is what's live.
 
-**In flight — `release/1.0.2` branch, open as PR #1 (CI green, not merged):**
-- **SID-based system-port classification** (owner account `S-1-5-18/19/20` / `pid<=4` / exe under `%SystemRoot%`), replacing the naive `port<1024` rule.
-- **Removed "minimize when it loses focus"** — it caused a minimize loop on restore; do **not** re-add it.
-- Settings dropdown chevrons; added `ci.yml` (check + cargo test on PRs). Version bumped to 1.0.2.
+**In flight — `release/1.0.3` branch (base for #2 and #3; no PRs opened yet):**
+- #2 open-in-editor & copy actions.
+- #3 `portpeek` CLI companion.
+- Version bumped to 1.0.3 on the branch.
 
 **Planned — tracked as GitHub Issues (label `enhancement`), each with a design plan in its body:**
-- #2 open-in-editor & copy actions · #3 `portpeek` CLI companion · #4 Windows code signing (SmartScreen). *(#5 telemetry now in flight on `feat/telemetry`.)*
+- **In flight, `release/1.0.3`:** #2 open-in-editor & copy actions · #3 `portpeek` CLI companion.
+- **Planned after:** #4 Windows code signing (SmartScreen).
 - Not yet filed: pin/group by project, watch & notify, restart process, real Docker/WSL mapping, macOS/Linux.
-- **Ideas live in Issues, not branches.** Create a feature branch off `main` only when you actually start one (don't pre-create branches — they rot).
+- **Ideas live in Issues, not branches.** Feature branches for #2/#3 should be created off `release/1.0.3` (the base for this version), not off `main`.
 
 **Known gaps / risks / stubs:**
 - **Installer is unsigned** → Windows SmartScreen "Unknown publisher". Biggest install-funnel issue.
-- **Usage telemetry** built on `feat/telemetry` (Aptabase, opt-out) but **not merged**; no data until it ships and a signed build carries `APTABASE_KEY`. Contributor builds without that env var emit nothing.
+- **Usage telemetry** (Aptabase, opt-out) shipped in v1.0.2, but still needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events — without it the plugin never initializes (silent no-op).
 - **Stub files** (placeholders, real logic lives elsewhere): `domain/ports/filters.rs`, `infrastructure/cache.rs`, `domain/detection/types.rs`, `domain/processes/*`. Don't assume they're wired.
 - `FrameworkDetectionSource::HttpProbe` exists in the enum but HTTP probing isn't implemented.
 - **winget:** first submission PR to `microsoft/winget-pkgs` is pending merge; the `winget.yml` auto-update PR only works after that lands.
@@ -148,7 +149,7 @@ cargo build --manifest-path src-tauri/Cargo.toml    # compile-check (also valida
 
 ## 6. Agent operating rules
 
-**Before changing anything:** read `lib/tauri/commands.ts` (the seam), `app/setup.rs` (backend wiring), and the store/component you're touching. Check `git branch` and PR state — `release/1.0.2` (PR #1) is unmerged.
+**Before changing anything:** read `lib/tauri/commands.ts` (the seam), `app/setup.rs` (backend wiring), and the store/component you're touching. Check `git branch` and PR state — `release/1.0.3` is the base branch for #2 and #3 (open feature branches off it, not off `main`).
 
 **Workflow:** work on a **branch** (`feat/…`, `fix/…`, `chore/…`), open a PR, let **CI** (`ci.yml`) pass, then merge → tag if releasing. **Do not push to `main` directly.** **Never add a `Co-Authored-By` (or any co-author) trailer to commits or PRs.**
 

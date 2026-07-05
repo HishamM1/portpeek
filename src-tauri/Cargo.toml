@@ -1,6 +1,6 @@
 [package]
 name = "portpeek"
-version = "1.0.2"
+version = "1.0.3"
 description = "A Windows-first localhost port tray utility."
 edition = "2021"
 
