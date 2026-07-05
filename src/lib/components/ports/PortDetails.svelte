@@ -3,7 +3,9 @@
   import Check from "@lucide/svelte/icons/check";
   import Clipboard from "@lucide/svelte/icons/clipboard";
   import Clock3 from "@lucide/svelte/icons/clock-3";
+  import CodeIcon from "@lucide/svelte/icons/code";
   import Container from "@lucide/svelte/icons/container";
+  import ExternalLink from "@lucide/svelte/icons/external-link";
   import FolderOpen from "@lucide/svelte/icons/folder-open";
   import MemoryStick from "@lucide/svelte/icons/memory-stick";
   import Radio from "@lucide/svelte/icons/radio";
@@ -11,7 +13,8 @@
   import Terminal from "@lucide/svelte/icons/terminal";
   import PortActions from "$lib/components/ports/PortActions.svelte";
   import PortBadge from "$lib/components/ports/PortBadge.svelte";
-  import { copyText } from "$lib/tauri/commands";
+  import { vsCodeAvailable } from "$lib/stores/editor";
+  import { copyText, openInEditor, openPath } from "$lib/tauri/commands";
   import type { PortItem } from "$lib/types/port";
   import { fileName, formatMemory, formatUptime } from "$lib/utils/format";
   import { isExposed, portSource } from "$lib/utils/ports.js";
@@ -30,6 +33,23 @@
         if (copied === key) copied = null;
       }, 1200);
     });
+  }
+
+  let openError = $state<string | null>(null);
+  function reportOpenError(error: unknown): void {
+    const message = String(error);
+    openError = message;
+    setTimeout(() => {
+      if (openError === message) openError = null;
+    }, 2500);
+  }
+  function openFolder(path: string | null): void {
+    if (!path) return;
+    void openPath(path).catch(reportOpenError);
+  }
+  function openEditor(path: string | null): void {
+    if (!path) return;
+    void openInEditor(path).catch(reportOpenError);
   }
 </script>
 
@@ -126,6 +146,28 @@
         <dt class="text-[11px] font-medium text-[var(--text-muted)]">Project</dt>
         <dd class="mt-0.5 truncate font-mono text-[12px] text-[var(--text-primary)]" title={port.workingDirectory ?? ""}>{port.workingDirectory ?? "—"}</dd>
       </div>
+      {#if port.workingDirectory}
+        <button
+          type="button"
+          aria-label="Open folder"
+          title="Open folder"
+          onclick={() => openFolder(port.workingDirectory)}
+          class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100"
+        >
+          <ExternalLink size={13} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+        {#if $vsCodeAvailable}
+          <button
+            type="button"
+            aria-label="Open in VS Code"
+            title="Open in VS Code"
+            onclick={() => openEditor(port.workingDirectory)}
+            class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100"
+          >
+            <CodeIcon size={13} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        {/if}
+      {/if}
       {@render copyButton("project", port.workingDirectory, "Copy project path")}
     </div>
     <div class="group flex items-start gap-2.5">
@@ -137,6 +179,10 @@
       {@render copyButton("command", port.command, "Copy command")}
     </div>
   </dl>
+
+  {#if openError}
+    <p class="text-[11px] text-[var(--danger)]" role="alert">{openError}</p>
+  {/if}
 </div>
 
 <PortActions {port} mode="process" processPorts={listeners.map((l) => l.port)} />

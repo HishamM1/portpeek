@@ -6,6 +6,7 @@
   import PortList from "$lib/components/ports/PortList.svelte";
   import SettingsPanel from "$lib/components/settings/SettingsPanel.svelte";
   import Toolbar from "$lib/components/toolbar/Toolbar.svelte";
+  import { loadEditorAvailability } from "$lib/stores/editor";
   import { loadSettings } from "$lib/stores/settings";
   import { trackAppStarted, trackSettingsOpened } from "$lib/analytics";
 
@@ -21,6 +22,7 @@
       : 180;
 
   onMount(async () => {
+    void loadEditorAvailability();
     await loadSettings();
     trackAppStarted();
   });

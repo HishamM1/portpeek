@@ -72,6 +72,33 @@ pub fn copy_text(app: AppHandle, text: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+pub fn open_path(app: AppHandle, path: String) -> Result<(), String> {
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_in_editor(app: AppHandle, path: String) -> Result<(), String> {
+    app.opener()
+        .open_path(path, Some("code"))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn detect_vscode() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        crate::platform::windows::editors::has_vscode()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
 fn localhost_url(port: u16, protocol: OpenProtocol) -> String {
     format!("{}://localhost:{port}", protocol.as_str())
 }
