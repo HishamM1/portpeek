@@ -1,6 +1,10 @@
 pub fn run() {
     crate::infrastructure::logging::init();
 
+    let runtime = option_env!("APTABASE_KEY")
+        .map(|_| tokio::runtime::Runtime::new().expect("failed to build Tokio runtime"));
+    let _runtime_guard = runtime.as_ref().map(|rt| rt.enter());
+
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = crate::app::window::show(app);
