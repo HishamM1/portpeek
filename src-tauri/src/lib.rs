@@ -1,8 +1,8 @@
 mod app;
 mod commands;
-mod domain;
+pub mod domain;
 mod infrastructure;
-mod platform;
+pub mod platform;
 mod state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

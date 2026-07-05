@@ -42,3 +42,11 @@ jobs:
           releaseBody: "Download the installer from the assets below."
           releaseDraft: true
           prerelease: false
+
+      - run: cargo build --release --bin portpeek --manifest-path src-tauri/Cargo.toml
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: src-tauri/target/release/portpeek.exe
