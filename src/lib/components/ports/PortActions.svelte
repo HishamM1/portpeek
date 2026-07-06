@@ -2,6 +2,7 @@
   import Copy from "@lucide/svelte/icons/copy";
   import ExternalLink from "@lucide/svelte/icons/external-link";
   import Hash from "@lucide/svelte/icons/hash";
+  import ShieldAlert from "@lucide/svelte/icons/shield-alert";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import IconButton from "$lib/components/shared/IconButton.svelte";
   import {
@@ -20,6 +21,7 @@
     copyLocalhostUrl,
     copyPort,
     killProcess,
+    killProcessElevated,
     openLocalhostUrl,
   } from "$lib/tauri/commands";
   import type { PortItem } from "$lib/types/port";
@@ -36,6 +38,7 @@
   let busy = $state<string | null>(null);
   let message = $state<string | null>(null);
   let confirming = $state(false);
+  let canElevate = $state(false);
   let label = $derived(port.displayName ?? port.processName ?? `PID ${port.pid}`);
   let portCount = $derived(processPorts.length || 1);
   let hasFramework = $derived<0 | 1>(port.framework ? 1 : 0);
@@ -47,9 +50,11 @@
   async function run(action: string, operation: () => Promise<void>): Promise<void> {
     busy = action;
     message = null;
+    if (action === "kill") canElevate = false;
+    const isKill = action === "kill" || action === "kill-admin";
     try {
       await operation();
-      if (action !== "open") message = action === "kill" ? "Process stopped" : "Copied";
+      if (action !== "open") message = isKill ? "Process stopped" : "Copied";
       if (action === "open")
         trackPortOpened({
           protocol: $settings.defaultOpenProtocol,
@@ -57,13 +62,19 @@
           has_favicon: hasFavicon,
         });
       else if (action === "url") trackPortUrlCopied({ protocol: $settings.defaultOpenProtocol });
-      else if (action === "kill") {
+      else if (isKill) {
         trackKillSucceeded({ port_count: portCount, has_framework: hasFramework });
         await refreshPorts();
       }
     } catch (error) {
-      message = String(error);
-      if (action === "kill") trackKillFailed({ error_type: errorType(error) });
+      const text = String(error);
+      if (action === "kill" && /denied|os error 5/i.test(text)) {
+        message = "Access denied — needs administrator rights.";
+        canElevate = true;
+      } else {
+        message = text;
+      }
+      if (isKill) trackKillFailed({ error_type: errorType(error) });
     } finally {
       busy = null;
     }
@@ -83,6 +94,11 @@
     confirming = false;
     trackKillConfirmed();
     void run("kill", () => killProcess(port.pid!));
+  }
+
+  function elevatedKill(): void {
+    if (port.pid === null) return;
+    void run("kill-admin", () => killProcessElevated(port.pid!));
   }
 
   function cancelKill(): void {
@@ -149,20 +165,33 @@
       </button>
     {:else}
       <span class="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-muted)]" aria-live="polite">{message ?? endpointLabel}</span>
-      <button
-        type="button"
-        disabled={port.pid === null || busy !== null || port.isSystemPort}
-        title={port.isSystemPort
-          ? "Protected system process"
-          : portCount > 1
-            ? `Stop process — frees ${portCount} ports`
-            : "Stop process"}
-        onclick={requestKill}
-        class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--danger)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
-      >
-        <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
-        Stop process
-      </button>
+      {#if canElevate}
+        <button
+          type="button"
+          disabled={busy !== null}
+          title="Retry with a Windows administrator prompt"
+          onclick={elevatedKill}
+          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--warning)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ShieldAlert size={14} strokeWidth={2} aria-hidden="true" />
+          Stop as admin
+        </button>
+      {:else}
+        <button
+          type="button"
+          disabled={port.pid === null || busy !== null || port.isSystemPort}
+          title={port.isSystemPort
+            ? "Protected system process"
+            : portCount > 1
+              ? `Stop process — frees ${portCount} ports`
+              : "Stop process"}
+          onclick={requestKill}
+          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--danger)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
+          Stop process
+        </button>
+      {/if}
     {/if}
   </div>
 {/if}

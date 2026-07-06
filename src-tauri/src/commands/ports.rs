@@ -45,6 +45,20 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn kill_process_elevated(pid: u32) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        crate::platform::windows::processes::terminate_elevated(pid)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = pid;
+        Err("process termination is currently supported on Windows only".into())
+    }
+}
+
+#[tauri::command]
 pub fn open_localhost_url(app: AppHandle, port: u16, protocol: OpenProtocol) -> Result<(), String> {
     app.opener()
         .open_url(localhost_url(port, protocol), None::<&str>)

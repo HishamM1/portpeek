@@ -35,6 +35,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::commands::ports::list_ports,
             crate::commands::ports::kill_process,
+            crate::commands::ports::kill_process_elevated,
             crate::commands::ports::open_localhost_url,
             crate::commands::ports::copy_localhost_url,
             crate::commands::ports::copy_port,
