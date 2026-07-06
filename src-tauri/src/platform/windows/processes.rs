@@ -63,7 +63,7 @@ pub fn enrich(items: &mut [PortItem]) {
     }
 }
 
-pub fn terminate(pid: u32) -> Result<(), String> {
+fn validate_killable(pid: u32) -> Result<(), String> {
     if pid <= 4 || pid == std::process::id() {
         return Err("refusing to terminate a protected process".into());
     }
@@ -74,13 +74,20 @@ pub fn terminate(pid: u32) -> Result<(), String> {
         false,
         ProcessRefreshKind::nothing(),
     );
-    let process = system
+    let name = system
         .process(Pid::from_u32(pid))
-        .ok_or_else(|| "process no longer exists".to_string())?;
-    let name = process.name().to_string_lossy();
+        .ok_or_else(|| "process no longer exists".to_string())?
+        .name()
+        .to_string_lossy()
+        .into_owned();
     if protected_name(&name) {
         return Err(format!("refusing to terminate protected process {name}"));
     }
+    Ok(())
+}
+
+pub fn terminate(pid: u32) -> Result<(), String> {
+    validate_killable(pid)?;
 
     // SAFETY: the PID is validated above; the returned handle is checked and
     // always closed after the single TerminateProcess call.
@@ -102,25 +109,7 @@ pub fn terminate(pid: u32) -> Result<(), String> {
 }
 
 pub fn terminate_elevated(pid: u32) -> Result<(), String> {
-    if pid <= 4 || pid == std::process::id() {
-        return Err("refusing to terminate a protected process".into());
-    }
-
-    let mut system = System::new();
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
-        false,
-        ProcessRefreshKind::nothing(),
-    );
-    let name = system
-        .process(Pid::from_u32(pid))
-        .ok_or_else(|| "process no longer exists".to_string())?
-        .name()
-        .to_string_lossy()
-        .into_owned();
-    if protected_name(&name) {
-        return Err(format!("refusing to terminate protected process {name}"));
-    }
+    validate_killable(pid)?;
 
     let system32 = format!(
         "{}\\System32",
@@ -137,7 +126,7 @@ pub fn terminate_elevated(pid: u32) -> Result<(), String> {
             "Hidden",
             "-Command",
             &format!(
-                "Start-Process -FilePath '{taskkill}' -Verb RunAs -Wait -ArgumentList '/PID','{pid}','/F'"
+                "Start-Process -FilePath '{taskkill}' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '/PID','{pid}','/F'"
             ),
         ])
         .creation_flags(CREATE_NO_WINDOW)
@@ -147,6 +136,7 @@ pub fn terminate_elevated(pid: u32) -> Result<(), String> {
         return Err("elevation was cancelled".into());
     }
 
+    let mut system = System::new();
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
         true,
