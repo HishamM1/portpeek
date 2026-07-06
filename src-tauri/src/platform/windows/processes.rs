@@ -123,16 +123,26 @@ pub fn terminate_elevated(pid: u32) -> Result<(), String> {
     }
 
     // Launch an elevated taskkill through the UAC "runas" verb. PortPeek stays
-    // non-elevated; Windows shows the consent prompt for this one action.
+    // non-elevated; Windows shows the consent prompt for this one action. Both
+    // executables are pinned to System32 so the elevated launch can't be
+    // hijacked via PATH.
+    let system32 = format!(
+        "{}\\System32",
+        std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
+    );
+    let powershell = format!("{system32}\\WindowsPowerShell\\v1.0\\powershell.exe");
+    let taskkill = format!("{system32}\\taskkill.exe");
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let status = Command::new("powershell")
+    let status = Command::new(&powershell)
         .args([
             "-NoProfile",
             "-NonInteractive",
             "-WindowStyle",
             "Hidden",
             "-Command",
-            &format!("Start-Process taskkill -Verb RunAs -Wait -ArgumentList '/PID','{pid}','/F'"),
+            &format!(
+                "Start-Process -FilePath '{taskkill}' -Verb RunAs -Wait -ArgumentList '/PID','{pid}','/F'"
+            ),
         ])
         .creation_flags(CREATE_NO_WINDOW)
         .status()
@@ -142,9 +152,11 @@ pub fn terminate_elevated(pid: u32) -> Result<(), String> {
     }
 
     // Start-Process doesn't surface taskkill's exit code, so confirm the kill.
+    // remove_dead_processes = true purges the just-killed PID so this lookup
+    // reports None on success instead of a stale cached entry.
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
-        false,
+        true,
         ProcessRefreshKind::nothing(),
     );
     if system.process(Pid::from_u32(pid)).is_some() {

@@ -168,7 +168,7 @@
       {#if canElevate}
         <button
           type="button"
-          disabled={busy !== null}
+          disabled={port.pid === null || busy !== null || port.isSystemPort}
           title="Retry with a Windows administrator prompt"
           onclick={elevatedKill}
           class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--warning)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
