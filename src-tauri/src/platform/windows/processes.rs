@@ -122,10 +122,6 @@ pub fn terminate_elevated(pid: u32) -> Result<(), String> {
         return Err(format!("refusing to terminate protected process {name}"));
     }
 
-    // Launch an elevated taskkill through the UAC "runas" verb. PortPeek stays
-    // non-elevated; Windows shows the consent prompt for this one action. Both
-    // executables are pinned to System32 so the elevated launch can't be
-    // hijacked via PATH.
     let system32 = format!(
         "{}\\System32",
         std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
@@ -151,9 +147,6 @@ pub fn terminate_elevated(pid: u32) -> Result<(), String> {
         return Err("elevation was cancelled".into());
     }
 
-    // Start-Process doesn't surface taskkill's exit code, so confirm the kill.
-    // remove_dead_processes = true purges the just-killed PID so this lookup
-    // reports None on success instead of a stale cached entry.
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
         true,
