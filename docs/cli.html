@@ -169,7 +169,7 @@
       <li>It's lowercase <code>portpeek</code> — the tray app is <code>PortPeek.exe</code>, so the two never collide.</li>
     </ul>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">powershell</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">powershell</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek --version</span>
 <span class="o">portpeek 1.1.0</span></pre>
     </div>
@@ -180,7 +180,7 @@
     <h2><span class="n">02</span>List listening ports</h2>
     <p class="sub">Run <code>portpeek</code> with no arguments for a table of your dev ports. System/OS ports are hidden and UDP is off by default — same scoping as the app's toolbar.</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek</span>
 <span class="hd">PORT   PROTO  PID    PROCESS   MEM</span>
 <span class="o">5173   tcp    14820  vite      48 MB</span>
@@ -190,7 +190,7 @@
     <h3>Include more with <code>--all</code> and <code>--udp</code></h3>
     <p>Add system-owned ports, UDP listeners, or both:</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek --all --udp</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek --all --udp</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek --all --udp</span>
 <span class="hd">PORT   PROTO  PID    PROCESS     MEM</span>
 <span class="o">135    tcp    1084   svchost     1 MB</span>
@@ -205,7 +205,7 @@
     <h2><span class="n">03</span>Inspect a port</h2>
     <p class="sub">Pass a port number to see everything about whatever's holding it — process, PID, memory, uptime, executable, project folder, and the full launch command.</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek 5173</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek 5173</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek 5173</span>
 <span class="o">port:        5173 (tcp)</span>
 <span class="o">address:     0.0.0.0</span>
@@ -224,13 +224,13 @@
     <h2><span class="n">04</span>Free a busy port</h2>
     <p class="sub">The headline job: <code>portpeek free &lt;port&gt;</code> stops the process holding a port so you can restart your server.</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek free 5173</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek free 5173</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek free 5173</span>
 <span class="g">Freed port 5173 (stopped pid 14820).</span></pre>
     </div>
     <p style="margin-top:14px">It runs the <em>same</em> safeguards as the app's Stop button — it refuses ports owned by protected system processes rather than risk your machine:</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek free 445</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek free 445</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek free 445</span>
 <span class="w">error: port 445 is owned by a protected system process; refusing to stop it</span></pre>
     </div>
@@ -254,29 +254,35 @@
 
   <section id="json">
     <h2><span class="n">06</span>Scripting with <code>--json</code></h2>
-    <p class="sub">Every command takes <code>--json</code>. The listing and single-port output use the exact same shape the app itself consumes (camelCase fields), so you can pipe it straight into <code>jq</code>, CI, or your own tooling.</p>
+    <p class="sub">Every command takes <code>--json</code>. The listing and single-port output use the exact same <code>PortItem</code> shape the app itself consumes (camelCase fields), so you can pipe it straight into <code>jq</code>, CI, or your own tooling. The CLI leaves <code>url</code>, <code>framework</code>, and the favicon fields <code>null</code> — those come from the app's detection step, which the CLI skips.</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek 5173 --json</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek 5173 --json</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek 5173 --json</span>
 <span class="o">[
   {
+    <span class="dim">"id"</span>: "tcp|0.0.0.0|5173|14820",
     <span class="dim">"port"</span>: 5173,
-    <span class="dim">"protocol"</span>: "tcp",
     <span class="dim">"address"</span>: "0.0.0.0",
+    <span class="dim">"protocol"</span>: "tcp",
     <span class="dim">"pid"</span>: 14820,
     <span class="dim">"processName"</span>: "node.exe",
     <span class="dim">"displayName"</span>: "vite",
     <span class="dim">"memoryMb"</span>: 48.3,
     <span class="dim">"uptimeSeconds"</span>: 1320,
+    <span class="dim">"command"</span>: "node node_modules/vite/bin/vite.js --host",
     <span class="dim">"executablePath"</span>: "C:\\Program Files\\nodejs\\node.exe",
     <span class="dim">"workingDirectory"</span>: "C:\\Projects\\shop",
-    <span class="dim">"command"</span>: "node node_modules/vite/bin/vite.js --host"
+    <span class="dim">"url"</span>: null,
+    <span class="dim">"faviconUrl"</span>: null,
+    <span class="dim">"cachedFaviconPath"</span>: null,
+    <span class="dim">"framework"</span>: null,
+    <span class="dim">"isSystemPort"</span>: false
   }
 ]</span></pre>
     </div>
     <p style="margin-top:14px"><code>free --json</code> reports which PIDs it stopped and any errors, so automation can react:</p>
     <div class="term">
-      <div class="term-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">portpeek free 5173 --json</span></div>
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek free 5173 --json</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek free 5173 --json</span>
 <span class="o">{
   <span class="dim">"port"</span>: 5173,
