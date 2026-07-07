@@ -1,6 +1,6 @@
 [package]
 name = "portpeek"
-version = "1.0.3"
+version = "1.1.0"
 description = "A Windows-first localhost port tray utility."
 edition = "2021"
 
@@ -38,6 +38,7 @@ sysinfo = { version = "0.39.5", default-features = false, features = ["system"] 
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
 clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
