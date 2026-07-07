@@ -51,6 +51,9 @@
     if (!path) return;
     void openInEditor(path).catch(reportOpenError);
   }
+
+  const revealButtonClass =
+    "mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100";
 </script>
 
 <div class="space-y-3 px-3.5 pb-1 pt-1">
@@ -102,7 +105,7 @@
         aria-label={copied === key ? "Copied" : label}
         title={copied === key ? "Copied" : label}
         onclick={() => copy(key, value)}
-        class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100"
+        class={revealButtonClass}
       >
         {#if copied === key}
           <Check size={13} strokeWidth={2} class="text-[var(--success)]" aria-hidden="true" />
@@ -152,7 +155,7 @@
           aria-label="Open folder"
           title="Open folder"
           onclick={() => openFolder(port.workingDirectory)}
-          class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100"
+          class={revealButtonClass}
         >
           <ExternalLink size={13} strokeWidth={1.8} aria-hidden="true" />
         </button>
@@ -162,7 +165,7 @@
             aria-label="Open in VS Code"
             title="Open in VS Code"
             onclick={() => openEditor(port.workingDirectory)}
-            class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100"
+            class={revealButtonClass}
           >
             <CodeIcon size={13} strokeWidth={1.8} aria-hidden="true" />
           </button>
