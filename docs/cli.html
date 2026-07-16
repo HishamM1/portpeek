@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PortPeek CLI — the terminal companion</title>
+<meta name="description" content="portpeek: a standalone Windows command-line companion to list local ports, inspect what's on a port, and free a busy one — with JSON output for scripts." />
+<meta property="og:title" content="PortPeek CLI — the terminal companion" />
+<meta property="og:description" content="List local ports, inspect what's on a port, and free a busy one — right from your terminal." />
+<meta property="og:type" content="website" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --abyss:#0A151A; --hull:#102029; --deck:#18313C; --deck-2:#1F3D49;
+    --seam:#1F3D49; --seam-soft:#16303B;
+    --fog:#8AA3AC; --fog-dim:#5E7882; --bone:#E9EFF1;
+    --signal:#34D6C0; --signal-deep:#16A493; --signal-dim:#1c6b62;
+    --buoy:#F5B056; --flare:#FF6B5C; --live:#2DD47E;
+    --sans:"Geist","Segoe UI",system-ui,sans-serif;
+    --mono:"Geist Mono","Cascadia Code",ui-monospace,monospace;
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);
+    background:
+      radial-gradient(80% 60% at 78% -5%, #10262b 0%, transparent 60%),
+      var(--abyss);
+    color:var(--bone); line-height:1.65; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  ::selection{background:rgba(52,214,192,.24)}
+  :focus-visible{outline:2px solid var(--signal);outline-offset:3px;border-radius:6px}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .doc{max-width:800px}
+
+  .eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--signal);display:inline-flex;align-items:center;gap:9px}
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--signal);opacity:.6}
+
+  /* nav — mirrors the landing */
+  header.nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);
+    background:rgba(10,21,26,.72);border-bottom:1px solid var(--seam-soft)}
+  .nav-in{display:flex;align-items:center;gap:14px;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .glyph{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(150deg,#3FE6D0,#16A493 72%);
+    box-shadow:0 4px 14px -4px var(--signal-dim), inset 0 0 0 1px rgba(255,255,255,.14)}
+  .glyph svg{width:18px;height:18px}
+  .ecg{stroke:#06231f;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:64;animation:sweep 2.6s linear infinite}
+  @keyframes sweep{from{stroke-dashoffset:64}to{stroke-dashoffset:0}}
+  .nav-links{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .nav-links a.tab{padding:8px 12px;font-size:13.5px;color:var(--fog);border-radius:8px}
+  .nav-links a.tab:hover{color:var(--bone);background:var(--deck)}
+  .nav-links a.tab.active{color:var(--signal)}
+  @media(max-width:640px){.nav-links a.tab{display:none}}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;
+    border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid transparent;transition:.15s;white-space:nowrap}
+  .btn svg{width:16px;height:16px}
+  .btn-primary{background:var(--signal);color:#04231f;box-shadow:0 6px 20px -8px var(--signal-dim)}
+  .btn-primary:hover{background:#48e2cd;transform:translateY(-1px)}
+  .btn-sm{padding:8px 13px;font-size:13px}
+
+  /* header */
+  .head{padding:clamp(40px,7vw,72px) 0 clamp(24px,4vw,40px)}
+  h1{font-weight:700;letter-spacing:-.03em;line-height:1.05;font-size:clamp(34px,5vw,52px);margin:18px 0 0}
+  h1 .mono{font-family:var(--mono);color:var(--signal);font-weight:600}
+  .lede{color:var(--fog);font-size:clamp(16px,1.6vw,18px);max-width:56ch;margin-top:18px}
+  .head .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+  .ver{font:500 12.5px/1 var(--mono);color:var(--fog-dim);letter-spacing:.02em;display:inline-flex;align-items:center;gap:8px}
+
+  /* section + prose */
+  section{padding:clamp(28px,4vw,44px) 0;border-top:1px solid var(--seam-soft)}
+  h2{font-size:clamp(21px,2.6vw,26px);font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+  h2 .n{font:600 13px var(--mono);color:var(--signal-deep);margin-right:10px}
+  h3{font-size:15px;font-weight:600;margin:26px 0 10px;letter-spacing:-.01em}
+  h3 code{font:600 14px var(--mono);color:var(--signal);background:#0d2a28;border:1px solid #1c4540;border-radius:6px;padding:2px 8px}
+  p{color:var(--fog);max-width:66ch}
+  p code,li code,td code{font:500 13px var(--mono);color:var(--bone);background:var(--deck);border:1px solid var(--seam);border-radius:5px;padding:1px 6px}
+  .sub{color:var(--fog);font-size:15px;margin-bottom:18px;max-width:66ch}
+  ul.notes{list-style:none;margin:12px 0 0;display:grid;gap:9px}
+  ul.notes li{position:relative;padding-left:22px;color:var(--fog);font-size:14.5px}
+  ul.notes li::before{content:"";position:absolute;left:2px;top:9px;width:7px;height:7px;border-radius:2px;
+    background:var(--signal);box-shadow:0 0 8px var(--signal-dim)}
+
+  /* terminal block */
+  .term{margin:14px 0 4px;border:1px solid var(--seam);border-radius:12px;overflow:hidden;
+    background:linear-gradient(180deg,#0d1e24,#0b191e);box-shadow:0 24px 60px -34px #000}
+  .term-bar{display:flex;align-items:center;gap:7px;padding:9px 13px;border-bottom:1px solid var(--seam-soft)}
+  .term-bar .d{width:10px;height:10px;border-radius:50%;background:var(--seam)}
+  .term-bar .t{margin-left:8px;font:500 11px var(--mono);color:var(--fog-dim);letter-spacing:.03em}
+  pre{margin:0;padding:15px 16px;overflow-x:auto;font:500 13px/1.7 var(--mono);color:var(--bone)}
+  pre .p{color:var(--signal)}            /* prompt */
+  pre .c{color:var(--bone)}              /* command */
+  pre .o{color:var(--fog)}               /* output */
+  pre .dim{color:var(--fog-dim)}
+  pre .g{color:var(--live)}
+  pre .w{color:var(--buoy)}
+  pre .hd{color:var(--fog-dim);text-transform:uppercase;letter-spacing:.04em}
+
+  /* flags table */
+  .tbl{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+  .tbl th{text-align:left;font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;
+    color:var(--fog-dim);padding:8px 12px;border-bottom:1px solid var(--seam)}
+  .tbl td{padding:10px 12px;border-bottom:1px solid var(--seam-soft);color:var(--fog);vertical-align:top}
+  .tbl td:first-child{white-space:nowrap}
+  .tbl code{font:600 13px var(--mono);color:var(--signal);background:#0d2a28;border:1px solid #1c4540}
+
+  .callout{margin-top:16px;border:1px solid rgba(245,176,86,.28);background:rgba(245,176,86,.07);
+    border-radius:12px;padding:14px 16px;color:var(--fog);font-size:14px}
+  .callout b{color:var(--buoy)}
+
+  footer{border-top:1px solid var(--seam-soft);padding:36px 0 48px;margin-top:24px}
+  .foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--fog)}
+  .foot .fl{margin-left:auto;display:flex;gap:18px}
+  .foot a:hover{color:var(--signal)}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html" aria-label="PortPeek home">
+      <span class="glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><polyline class="ecg" points="1,12 6,12 9,5 12,19 15,9 18,12 23,12"/></svg>
+      </span>
+      PortPeek
+    </a>
+    <nav class="nav-links">
+      <a class="tab" href="index.html#features">Features</a>
+      <a class="tab" href="index.html#how">How it works</a>
+      <a class="tab active" href="cli.html" aria-current="page">CLI</a>
+      <a class="btn btn-primary btn-sm" href="https://github.com/HishamM1/portpeek/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Download
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap doc">
+
+  <div class="head">
+    <span class="eyebrow">portpeek · command line</span>
+    <h1>PortPeek on the <span class="mono">command&nbsp;line</span></h1>
+    <p class="lede">Port-conflict pain starts in the terminal — an <code>EADDRINUSE</code> and a guess. <code>portpeek</code> is a tiny standalone companion to the tray app: list what's listening, inspect a port, and free it, without leaving the shell.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/HishamM1/portpeek/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Get portpeek.exe
+      </a>
+      <span class="ver">Windows x64 · latest <b id="app-version">release</b></span>
+    </div>
+  </div>
+
+  <section id="install">
+    <h2><span class="n">01</span>Install</h2>
+    <p class="sub">The CLI ships as a standalone <code>portpeek.exe</code> attached to every GitHub release — no separate installer.</p>
+    <ul class="notes">
+      <li>Download <code>portpeek.exe</code> from the <a href="https://github.com/HishamM1/portpeek/releases/latest" style="color:var(--signal)">latest release</a> assets.</li>
+      <li>Drop it in a folder on your <code>PATH</code> (e.g. a personal <code>C:\Tools</code> you've added), so <code>portpeek</code> works from any directory.</li>
+      <li>It's lowercase <code>portpeek</code> — the tray app is <code>PortPeek.exe</code>, so the two never collide.</li>
+    </ul>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">powershell</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek --version</span>
+<span class="o">portpeek 1.1.0</span></pre>
+    </div>
+    <div class="callout"><b>Windows-only</b> today, like the app. On other platforms the commands parse but report that port discovery is Windows-only (macOS/Linux are planned).</div>
+  </section>
+
+  <section id="list">
+    <h2><span class="n">02</span>List listening ports</h2>
+    <p class="sub">Run <code>portpeek</code> with no arguments for a table of your dev ports. System/OS ports are hidden and UDP is off by default — same scoping as the app's toolbar.</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek</span>
+<span class="hd">PORT   PROTO  PID    PROCESS   MEM</span>
+<span class="o">5173   tcp    14820  vite      48 MB</span>
+<span class="o">5432   tcp    5140   postgres  2 MB</span>
+<span class="o">9277   tcp    9784   warp      102 MB</span></pre>
+    </div>
+    <h3>Include more with <code>--all</code> and <code>--udp</code></h3>
+    <p>Add system-owned ports, UDP listeners, or both:</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek --all --udp</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek --all --udp</span>
+<span class="hd">PORT   PROTO  PID    PROCESS     MEM</span>
+<span class="o">135    tcp    1084   svchost     1 MB</span>
+<span class="o">445    tcp    4      System      0 MB</span>
+<span class="o">5173   tcp    14820  vite        48 MB</span>
+<span class="o">5353   udp    1520   svchost     2 MB</span>
+<span class="o">41641  udp    9076   tailscaled  17 MB</span></pre>
+    </div>
+  </section>
+
+  <section id="inspect">
+    <h2><span class="n">03</span>Inspect a port</h2>
+    <p class="sub">Pass a port number to see everything about whatever's holding it — process, PID, memory, uptime, executable, project folder, and the full launch command.</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek 5173</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek 5173</span>
+<span class="o">port:        5173 (tcp)</span>
+<span class="o">address:     0.0.0.0</span>
+<span class="o">process:     vite</span>
+<span class="o">pid:         14820</span>
+<span class="o">memory:      48 MB</span>
+<span class="o">uptime:      22m</span>
+<span class="o">executable:  C:\Program Files\nodejs\node.exe</span>
+<span class="o">project:     C:\Projects\shop</span>
+<span class="o">command:     node node_modules/vite/bin/vite.js --host</span></pre>
+    </div>
+    <p style="margin-top:14px">If nothing's listening, it exits non-zero with <code>error: nothing is listening on port 5173</code> — handy in scripts.</p>
+  </section>
+
+  <section id="free">
+    <h2><span class="n">04</span>Free a busy port</h2>
+    <p class="sub">The headline job: <code>portpeek free &lt;port&gt;</code> stops the process holding a port so you can restart your server.</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek free 5173</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek free 5173</span>
+<span class="g">Freed port 5173 (stopped pid 14820).</span></pre>
+    </div>
+    <p style="margin-top:14px">It runs the <em>same</em> safeguards as the app's Stop button — it refuses ports owned by protected system processes rather than risk your machine:</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek free 445</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek free 445</span>
+<span class="w">error: port 445 is owned by a protected system process; refusing to stop it</span></pre>
+    </div>
+    <div class="callout"><b>Heads-up</b> — <code>free</code> stops the process immediately, with no confirmation prompt. It only touches your own processes; kernel/system PIDs and protected names are always refused.</div>
+  </section>
+
+  <section id="flags">
+    <h2><span class="n">05</span>Flags</h2>
+    <p class="sub">Global flags work on any command.</p>
+    <table class="tbl">
+      <thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>--all</code></td><td>Include system/OS-owned ports in the listing (hidden by default).</td></tr>
+        <tr><td><code>--udp</code></td><td>Include UDP listeners (TCP-only by default).</td></tr>
+        <tr><td><code>--json</code></td><td>Print machine-readable JSON instead of the table — for scripts and pipelines.</td></tr>
+        <tr><td><code>-h</code>, <code>--help</code></td><td>Show usage for the command.</td></tr>
+        <tr><td><code>-V</code>, <code>--version</code></td><td>Print the version.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="json">
+    <h2><span class="n">06</span>Scripting with <code>--json</code></h2>
+    <p class="sub">Every command takes <code>--json</code>. The listing and single-port output use the exact same <code>PortItem</code> shape the app itself consumes (camelCase fields), so you can pipe it straight into <code>jq</code>, CI, or your own tooling. The CLI leaves <code>url</code>, <code>framework</code>, and the favicon fields <code>null</code> — those come from the app's detection step, which the CLI skips.</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek 5173 --json</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek 5173 --json</span>
+<span class="o">[
+  {
+    <span class="dim">"id"</span>: "tcp|0.0.0.0|5173|14820",
+    <span class="dim">"port"</span>: 5173,
+    <span class="dim">"address"</span>: "0.0.0.0",
+    <span class="dim">"protocol"</span>: "tcp",
+    <span class="dim">"pid"</span>: 14820,
+    <span class="dim">"processName"</span>: "node.exe",
+    <span class="dim">"displayName"</span>: "vite",
+    <span class="dim">"memoryMb"</span>: 48.3,
+    <span class="dim">"uptimeSeconds"</span>: 1320,
+    <span class="dim">"command"</span>: "node node_modules/vite/bin/vite.js --host",
+    <span class="dim">"executablePath"</span>: "C:\\Program Files\\nodejs\\node.exe",
+    <span class="dim">"workingDirectory"</span>: "C:\\Projects\\shop",
+    <span class="dim">"url"</span>: null,
+    <span class="dim">"faviconUrl"</span>: null,
+    <span class="dim">"cachedFaviconPath"</span>: null,
+    <span class="dim">"framework"</span>: null,
+    <span class="dim">"isSystemPort"</span>: false
+  }
+]</span></pre>
+    </div>
+    <p style="margin-top:14px"><code>free --json</code> reports which PIDs it stopped and any errors, so automation can react:</p>
+    <div class="term">
+      <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek free 5173 --json</span></div>
+      <pre><span class="p">PS&gt;</span> <span class="c">portpeek free 5173 --json</span>
+<span class="o">{
+  <span class="dim">"port"</span>: 5173,
+  <span class="dim">"freedPids"</span>: [14820],
+  <span class="dim">"errors"</span>: []
+}</span></pre>
+    </div>
+  </section>
+
+  <section id="notes">
+    <h2><span class="n">07</span>Good to know</h2>
+    <ul class="notes">
+      <li>The CLI talks to the same Windows scanning and terminate code as the tray app — the numbers match what you see in the UI.</li>
+      <li>It skips <b>framework and favicon detection</b> (those run inside the app), so a port lookup won't label a server "Next.js" the way the GUI does — it stays fast and dependency-free.</li>
+      <li>Commands exit non-zero on failure (nothing listening, protected process, kill error), so <code>&&</code> chains and CI steps behave.</li>
+      <li>Prefer clicking? Everything here is in the <a href="index.html" style="color:var(--signal)">tray app</a> too.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span class="brand" style="gap:9px">
+      <span class="glyph" style="width:24px;height:24px;border-radius:7px" aria-hidden="true"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><polyline class="ecg" points="1,12 6,12 9,5 12,19 15,9 18,12 23,12"/></svg></span>
+      PortPeek
+    </span>
+    <span style="color:var(--fog-dim)">localhost, decoded.</span>
+    <span class="fl">
+      <a href="index.html">Home</a>
+      <a href="https://github.com/HishamM1/portpeek">GitHub</a>
+      <a href="https://github.com/HishamM1/portpeek/releases">Releases</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+  (async () => {
+    try {
+      const res = await fetch("https://api.github.com/repos/HishamM1/portpeek/releases/latest");
+      if (!res.ok) return;
+      const tag = (await res.json()).tag_name;
+      const el = document.getElementById("app-version");
+      if (tag && el) el.textContent = tag.startsWith("v") ? tag : `v${tag}`;
+    } catch {}
+  })();
+</script>
+</body>
+</html>
