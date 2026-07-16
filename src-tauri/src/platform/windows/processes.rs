@@ -1,4 +1,6 @@
+use std::os::windows::process::CommandExt;
 use std::path::Path;
+use std::process::Command;
 
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 use windows_sys::Win32::{
@@ -61,7 +63,7 @@ pub fn enrich(items: &mut [PortItem]) {
     }
 }
 
-pub fn terminate(pid: u32) -> Result<(), String> {
+fn validate_killable(pid: u32) -> Result<(), String> {
     if pid <= 4 || pid == std::process::id() {
         return Err("refusing to terminate a protected process".into());
     }
@@ -72,13 +74,20 @@ pub fn terminate(pid: u32) -> Result<(), String> {
         false,
         ProcessRefreshKind::nothing(),
     );
-    let process = system
+    let name = system
         .process(Pid::from_u32(pid))
-        .ok_or_else(|| "process no longer exists".to_string())?;
-    let name = process.name().to_string_lossy();
+        .ok_or_else(|| "process no longer exists".to_string())?
+        .name()
+        .to_string_lossy()
+        .into_owned();
     if protected_name(&name) {
         return Err(format!("refusing to terminate protected process {name}"));
     }
+    Ok(())
+}
+
+pub fn terminate(pid: u32) -> Result<(), String> {
+    validate_killable(pid)?;
 
     // SAFETY: the PID is validated above; the returned handle is checked and
     // always closed after the single TerminateProcess call.
@@ -97,6 +106,46 @@ pub fn terminate(pid: u32) -> Result<(), String> {
             None => Ok(()),
         }
     }
+}
+
+pub fn terminate_elevated(pid: u32) -> Result<(), String> {
+    validate_killable(pid)?;
+
+    let system32 = format!(
+        "{}\\System32",
+        std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
+    );
+    let powershell = format!("{system32}\\WindowsPowerShell\\v1.0\\powershell.exe");
+    let taskkill = format!("{system32}\\taskkill.exe");
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let status = Command::new(&powershell)
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            &format!(
+                "Start-Process -FilePath '{taskkill}' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '/PID','{pid}','/F'"
+            ),
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .map_err(|error| error.to_string())?;
+    if !status.success() {
+        return Err("elevation was cancelled".into());
+    }
+
+    let mut system = System::new();
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
+        true,
+        ProcessRefreshKind::nothing(),
+    );
+    if system.process(Pid::from_u32(pid)).is_some() {
+        return Err("access is denied".into());
+    }
+    Ok(())
 }
 
 fn display_name(process_name: &str, cwd: Option<&Path>) -> Option<String> {

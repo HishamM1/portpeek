@@ -4,6 +4,7 @@ import type { OpenProtocol, Settings } from "$lib/types/settings";
 
 export const listPorts = () => invoke<PortItem[]>("list_ports");
 export const killProcess = (pid: number) => invoke<void>("kill_process", { pid });
+export const killProcessElevated = (pid: number) => invoke<void>("kill_process_elevated", { pid });
 export const openLocalhostUrl = (port: number, protocol: OpenProtocol) =>
   invoke<void>("open_localhost_url", { port, protocol });
 export const copyLocalhostUrl = (port: number, protocol: OpenProtocol) =>

@@ -78,7 +78,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Per-listener context:** port(s), PID, memory, uptime, executable, project folder, launch command.
 - **Framework detection** (package.json / command / config file, with confidence) + framework badge.
 - **Project favicon** caching from local files (`public/`, `static/`, `src/app/`).
-- **Stop process** with protected-process guards and an optional confirm step.
+- **Stop process** with protected-process guards and an optional confirm step; if a stop is denied (elevated/other-user process), a **"Stop as admin"** action retries via a one-off Windows UAC prompt (`kill_process_elevated`) while PortPeek stays non-elevated.
 - **"Free this port"** resolver — type a port number, see/stop whatever holds it.
 - **Quick actions:** open localhost URL, copy URL, copy port, copy text (paths/command).
 - **v1.0.3:** **Open folder** (project directory in Explorer) and **Open in VS Code** (only shown when `code` is detected on PATH) actions on the project row.
