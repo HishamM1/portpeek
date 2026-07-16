@@ -22,11 +22,9 @@ Every process listening on a local port, with its PID, memory, uptime, project f
 
 Download the latest installer from [Releases](https://github.com/HishamM1/portpeek/releases/latest). Windows 10/11, x64.
 
-On first launch Windows may show a SmartScreen prompt while the download builds reputation. Choose **More info**, then **Run anyway**.
+Prefer a package manager? Install it with `winget install PortPeek`.
 
-## Code signing
-
-Free code signing provided by [SignPath.org](https://signpath.org), certificate by [SignPath Foundation](https://signpath.org).
+On first launch Windows may show a SmartScreen warning because the installer is not currently code-signed. This is a reputation warning, not a malware verdict: download only from the official GitHub release, then choose **More info**, then **Run anyway** if you trust the source.
 
 ## See it
 

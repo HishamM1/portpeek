@@ -33,7 +33,7 @@ Repo: `github.com/HishamM1/portpeek` (public, MIT © Hisham Medhat). Landing pag
 - **Growth loops:** a shareable CLI (`portpeek <port>`), winget/scoop presence, the interactive landing-page demo, OSS/GitHub stars, and auto-update keeping users current.
 - **Business model:** **free & open source (MIT)** today. A possible future "Pro/Team" tier (remote/SSH monitoring, deep Docker/K8s integration, team dashboards) is *unconfirmed* — stay free-first; don't build paywalls without a decision.
 - **Success metrics (once telemetry lands):** activation = *freed a port in week 1*; retention = DAU / return rate; plus per-feature usage. Until then, roadmap = judgment.
-- **Distribution:** GitHub Releases (signed installer + auto-update), winget (first submission pending), landing page at `hishamm1.github.io/portpeek/`.
+- **Distribution:** GitHub Releases (installer + updater signatures), winget, landing page at `hishamm1.github.io/portpeek/`.
 
 ## 3. Architecture & patterns
 
@@ -58,9 +58,10 @@ enrich (framework/favicon) → PortItem[] → ports store → filters → PortLi
 - `app/` — `setup.rs`, `tray.rs` (tray icon/menu; left-click → `window::toggle`), `window.rs` (`show`/`hide`/`toggle`, bottom-right positioning, `handle_event`).
 - `commands/` — the `#[tauri::command]` handlers: `ports.rs` (`list_ports`, `kill_process`, `open_localhost_url`, `copy_localhost_url`, `copy_port`, `copy_text`), `settings.rs` (`get_settings`, `update_settings`), `window.rs` (`show_popup_window`, `hide_popup_window`). Register new commands in `setup.rs`'s `invoke_handler!`.
 - `domain/` — pure logic, no OS calls. `ports/types.rs` (`PortItem`, `PortProtocol`), `settings/types.rs` (`Settings`, `Theme`, `OpenProtocol` + `validate`), `detection/` (`framework.rs` — package.json/command/config detection with confidence; `favicon.rs` — caches a project's favicon to the app cache dir; `project.rs` — `find_root` by markers; `mod.rs::enrich(app, items)` runs framework+favicon).
-- `platform/windows/` — OS-specific. `ports.rs` (TCP+UDP enumeration via Win32 `GetExtendedTcp/UdpTable`), `processes.rs` (`enrich` via `sysinfo`, `is_system_process` classification, `terminate` with protections).
+- `platform/windows/` — OS-specific. `ports.rs` (TCP+UDP enumeration via Win32 `GetExtendedTcp/UdpTable`), `processes.rs` (`enrich` via `sysinfo`, `is_system_process` classification, `terminate` with protections), `editors.rs` (`has_vscode` — checks `code` on PATH).
 - `infrastructure/` — `logging.rs` (tracing), `paths.rs` (settings persistence: atomic write + backup).
 - `state/app_state.rs` — `AppState { settings: Mutex<Settings> }`, managed via `app.manage(...)`.
+- **`bin/portpeek-cli.rs`** — a second `[[bin]]` (`portpeek`, lowercase — the GUI is `PortPeek`), not tied to Tauri. Depends on `domain`/`platform` being `pub mod` in `lib.rs` (only what the CLI needs; `app`/`commands`/`infrastructure`/`state` stay private). Reuses `platform::windows::{ports, processes}` directly — no `AppHandle`, so no framework/favicon detection (that needs one). `clap` (derive) for args; a hand-rolled table formatter, no table crate.
 
 **Where things live (for new work):**
 - Port scanning / process detection → `platform/windows/` (add other OSes as `platform/<os>/`).
@@ -78,9 +79,10 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Per-listener context:** port(s), PID, memory, uptime, executable, project folder, launch command.
 - **Framework detection** (package.json / command / config file, with confidence) + framework badge.
 - **Project favicon** caching from local files (`public/`, `static/`, `src/app/`).
-- **Stop process** with protected-process guards and an optional confirm step.
+- **Stop process** with protected-process guards and an optional confirm step; if a stop is denied (elevated/other-user process), a **"Stop as admin"** action retries via a one-off Windows UAC prompt (`kill_process_elevated`) while PortPeek stays non-elevated.
 - **"Free this port"** resolver — type a port number, see/stop whatever holds it.
 - **Quick actions:** open localhost URL, copy URL, copy port, copy text (paths/command).
+- **v1.0.3:** **Open folder** (project directory in Explorer) and **Open in VS Code** (only shown when `code` is detected on PATH) actions on the project row.
 - **Filters & search:** dev vs system ports, UDP toggle, live search over ports/names/PIDs.
 - **Exposure badge** when bound to `0.0.0.0`; **Docker/WSL** provenance chip (frontend heuristic).
 - **Settings:** theme (system/light/dark), refresh interval, default protocol, confirm-before-kill, launch-at-startup — persisted to disk.
@@ -89,6 +91,8 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Around the app:** landing page with an interactive demo; CI (release + winget); auto-generated icons/tray.
 - **v1.0.2:** SID-based **system-port classification by process identity** (owner account / kernel / `%SystemRoot%`, not port number); removed "minimize when it loses focus" (looping bug); settings **dropdown chevrons**.
 - **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
+- **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases (not yet bundled into the installer / added to PATH — tracked as a follow-up).
+- **v1.1.0:** open project folders / VS Code from port details; elevated stop via a one-off UAC prompt.
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
 
@@ -96,8 +100,8 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 
 The current/next-version tracker. **Keep it accurate on every release** — it's how the next session knows where things stand and what's slated next.
 
-- **Shipped:** **v1.0.2** (on `main`, tagged and released).
-- **Next / in flight:** **v1.0.3** — `release/1.0.3`: #2 open-in-editor & copy actions, #3 `portpeek` CLI companion.
+- **Shipped:** **v1.0.3** (tagged and released).
+- **Next / in flight:** **v1.1.0** — `release/1.1.0`: #2 open-in-editor & copy actions, #3 `portpeek` CLI companion, #11 elevated stop.
 - **Planned after (unassigned to a version):** #4 Windows code signing (SmartScreen) — blocked on an owner decision (SignPath Foundation / Azure Trusted Signing / EV cert) + secrets. Pin scope to a **GitHub milestone** when you schedule a version.
 
 **On each release:**
@@ -106,25 +110,26 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 
 ## 4. Implementation status (honest)
 
-**Shipped:** `main` = **v1.0.2** — the **Current features** list above is what's live.
+**Shipped:** `main` = **v1.0.3** — the **Current features** list above is what's live.
 
-**In flight — `release/1.0.3` branch (base for #2 and #3; no PRs opened yet):**
-- #2 open-in-editor & copy actions.
-- #3 `portpeek` CLI companion.
-- Version bumped to 1.0.3 on the branch.
+**In flight — `release/1.1.0` branch:**
+- #2 open-in-editor & copy actions — implemented on `feat/open-in-editor`, PR pending.
+- #3 `portpeek` CLI companion — implemented on `feat/cli`, PR pending.
+- #11 elevated stop — implemented on `feat/elevated-kill`, PR pending.
+- Version bumped to 1.1.0 on the branch.
 
 **Planned — tracked as GitHub Issues (label `enhancement`), each with a design plan in its body:**
-- **In flight, `release/1.0.3`:** #2 open-in-editor & copy actions · #3 `portpeek` CLI companion.
+- **In flight, `release/1.1.0`:** #2 open-in-editor & copy actions · #3 `portpeek` CLI companion · #11 elevated stop.
 - **Planned after:** #4 Windows code signing (SmartScreen).
 - Not yet filed: pin/group by project, watch & notify, restart process, real Docker/WSL mapping, macOS/Linux.
-- **Ideas live in Issues, not branches.** Feature branches for #2/#3 should be created off `release/1.0.3` (the base for this version), not off `main`.
+- **Ideas live in Issues, not branches.** Feature branches for release work should be created from the active release branch, not off `main`.
 
 **Known gaps / risks / stubs:**
 - **Installer is unsigned** → Windows SmartScreen "Unknown publisher". Biggest install-funnel issue.
-- **Usage telemetry** (Aptabase, opt-out) shipped in v1.0.2, but still needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events — without it the plugin never initializes (silent no-op).
+- **Usage telemetry** (Aptabase, opt-out) shipped in v1.0.2; `APTABASE_KEY` is configured as a GitHub Actions secret for release builds.
 - **Stub files** (placeholders, real logic lives elsewhere): `domain/ports/filters.rs`, `infrastructure/cache.rs`, `domain/detection/types.rs`, `domain/processes/*`. Don't assume they're wired.
 - `FrameworkDetectionSource::HttpProbe` exists in the enum but HTTP probing isn't implemented.
-- **winget:** first submission PR to `microsoft/winget-pkgs` is pending merge; the `winget.yml` auto-update PR only works after that lands.
+- **winget:** first submission is merged; future published releases trigger `winget.yml` update PRs.
 
 ## 5. Development workflow
 
@@ -134,7 +139,7 @@ Requires **Rust** (rustup), **Node 22+**, **pnpm** (`packageManager: pnpm@11.8.0
 pnpm install
 pnpm tauri dev        # run the full desktop app (backend commands work here)
 pnpm dev              # frontend only in a browser — Rust commands will NOT work
-pnpm tauri build      # produce the signed installer  (see signing note below)
+pnpm tauri build      # produce the installer
 pnpm check            # svelte-check (TypeScript) — must be 0 errors
 pnpm test:ui          # node --test on src/lib/utils/ports.js
 cargo test  --manifest-path src-tauri/Cargo.toml    # Rust unit tests
@@ -145,11 +150,11 @@ cargo build --manifest-path src-tauri/Cargo.toml    # compile-check (also valida
 - Build artifacts (`build/`, `src-tauri/target/`, `node_modules/`) are gitignored. Installers go to GitHub Releases, never committed.
 - **Windows-only:** builds/tests assume a Windows toolchain (`windows-sys`). The scanning code is `#[cfg(target_os = "windows")]`; non-Windows returns an error.
 
-**Release:** bump the version in **all three** files — `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` — then `git tag vX.Y.Z && git push --tags`. `release.yml` builds the signed installer + `latest.json` into a **draft** release; publish it manually. Publishing serves the updater endpoint (`releases/latest/download/latest.json`) and fires `winget.yml`.
+**Release:** bump the version in **all three** files — `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` — then `git tag vX.Y.Z && git push --tags`. `release.yml` builds the installer, updater signature, CLI, and `latest.json` into a **draft** release; publish it manually. Publishing serves the updater endpoint (`releases/latest/download/latest.json`) and fires `winget.yml`.
 
 ## 6. Agent operating rules
 
-**Before changing anything:** read `lib/tauri/commands.ts` (the seam), `app/setup.rs` (backend wiring), and the store/component you're touching. Check `git branch` and PR state — `release/1.0.3` is the base branch for #2 and #3 (open feature branches off it, not off `main`).
+**Before changing anything:** read `lib/tauri/commands.ts` (the seam), `app/setup.rs` (backend wiring), and the store/component you're touching. Check `git branch` and PR state — feature branches should target the active release branch, not `main`.
 
 **Workflow:** work on a **branch** (`feat/…`, `fix/…`, `chore/…`), open a PR, let **CI** (`ci.yml`) pass, then merge → tag if releasing. **Do not push to `main` directly.** **Never add a `Co-Authored-By` (or any co-author) trailer to commits or PRs.**
 
@@ -166,7 +171,7 @@ cargo build --manifest-path src-tauri/Cargo.toml    # compile-check (also valida
 - Window: **borderless, taskbar-present, draggable via header, opens bottom-right, shown on manual launch, hidden on `--hidden` autostart.** **Minimize-on-blur was removed on purpose (looping bug) — don't bring it back.**
 - **System-port classification = process identity** (owner SID / kernel / `%SystemRoot%`), not port number.
 - **Counts come from one source** (`scopedPorts`/`visiblePorts`) — never read a raw store for a count that a filtered list also shows.
-- **Auto-update** via tauri-plugin-updater (minisign key; endpoint = GitHub `latest.json`).
+- **Auto-update** via tauri-plugin-updater (minisign key; endpoint = GitHub `latest.json`). The Windows installer is not Authenticode-signed and may show SmartScreen.
 - **Telemetry = Aptabase, opt-out (on by default), anonymous.** Key is injected via the `APTABASE_KEY` build-time env var (not committed — it ships in the binary anyway, so it's not secret); no key at build → plugin isn't initialized. **All tracking goes through the wrappers** (`src/lib/analytics.ts` frontend, `src-tauri/src/app/analytics.rs` for the few Rust events) — never call `trackEvent`/`track_event` directly. Every event gates on `settings.shareUsage`. Props are strings/numbers only; never PII, ports, paths, PIDs, process names, URLs, or query text.
 - Global element CSS resets belong in **`@layer base`**.
 
