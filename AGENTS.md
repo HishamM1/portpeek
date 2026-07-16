@@ -81,6 +81,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Stop process** with protected-process guards and an optional confirm step.
 - **"Free this port"** resolver — type a port number, see/stop whatever holds it.
 - **Quick actions:** open localhost URL, copy URL, copy port, copy text (paths/command).
+- **v1.0.3:** **Open folder** (project directory in Explorer) and **Open in VS Code** (only shown when `code` is detected on PATH) actions on the project row.
 - **Filters & search:** dev vs system ports, UDP toggle, live search over ports/names/PIDs.
 - **Exposure badge** when bound to `0.0.0.0`; **Docker/WSL** provenance chip (frontend heuristic).
 - **Settings:** theme (system/light/dark), refresh interval, default protocol, confirm-before-kill, launch-at-startup — persisted to disk.
@@ -108,9 +109,9 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 
 **Shipped:** `main` = **v1.0.2** — the **Current features** list above is what's live.
 
-**In flight — `release/1.0.3` branch (base for #2 and #3; no PRs opened yet):**
-- #2 open-in-editor & copy actions.
-- #3 `portpeek` CLI companion.
+**In flight — `release/1.0.3` branch (base for #2 and #3):**
+- #2 open-in-editor & copy actions — implemented on `feat/open-in-editor`, PR pending.
+- #3 `portpeek` CLI companion — not started.
 - Version bumped to 1.0.3 on the branch.
 
 **Planned — tracked as GitHub Issues (label `enhancement`), each with a design plan in its body:**
