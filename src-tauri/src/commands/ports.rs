@@ -45,6 +45,20 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn kill_process_elevated(pid: u32) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        crate::platform::windows::processes::terminate_elevated(pid)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = pid;
+        Err("process termination is currently supported on Windows only".into())
+    }
+}
+
+#[tauri::command]
 pub fn open_localhost_url(app: AppHandle, port: u16, protocol: OpenProtocol) -> Result<(), String> {
     app.opener()
         .open_url(localhost_url(port, protocol), None::<&str>)
@@ -70,6 +84,33 @@ pub fn copy_text(app: AppHandle, text: String) -> Result<(), String> {
     app.clipboard()
         .write_text(text)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_path(app: AppHandle, path: String) -> Result<(), String> {
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_in_editor(app: AppHandle, path: String) -> Result<(), String> {
+    app.opener()
+        .open_path(path, Some("code"))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn detect_vscode() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        crate::platform::windows::editors::has_vscode()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
 }
 
 fn localhost_url(port: u16, protocol: OpenProtocol) -> String {
