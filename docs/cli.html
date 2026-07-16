@@ -168,7 +168,7 @@
     <ul class="notes">
       <li>Download <code>portpeek.exe</code> from the <a href="https://github.com/HishamM1/portpeek/releases/latest" style="color:var(--signal)">latest release</a> assets.</li>
       <li>Put it in a permanent folder such as <code>C:\Tools\PortPeek</code>. Add the <em>folder</em> to your PATH — not the <code>.exe</code> file itself.</li>
-      <li>It's lowercase <code>portpeek</code> — the tray app is <code>PortPeek.exe</code>, so the two never collide.</li>
+      <li>The CLI is <code>portpeek.exe</code>; the tray app is <code>PortPeek.exe</code>. Keep them in separate folders or use distinct PATH entries to avoid Windows lookup ambiguity.</li>
     </ul>
     <h3>Add the CLI to PATH</h3>
     <ol class="steps">
@@ -183,13 +183,13 @@
       <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">powershell</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">$env:Path += ";C:\Tools\PortPeek"</span>
 <span class="p">PS&gt;</span> <span class="c">portpeek --version</span>
-<span class="o">portpeek 1.1.0</span></pre>
+<span class="o">portpeek &lt;installed-version&gt;</span></pre>
     </div>
     <div class="callout"><b>Tip</b> — The installer does not currently add the standalone CLI to PATH automatically. Once PATH is configured, <code>portpeek</code> works from any project folder.</div>
     <div class="term">
       <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">powershell</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek --version</span>
-<span class="o">portpeek 1.1.0</span></pre>
+<span class="o">portpeek &lt;installed-version&gt;</span></pre>
     </div>
     <div class="callout"><b>Windows-only</b> today, like the app. On other platforms the commands parse but report that port discovery is Windows-only (macOS/Linux are planned).</div>
   </section>
