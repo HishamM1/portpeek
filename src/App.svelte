@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { fly } from "svelte/transition";
   import AppShell from "$lib/components/layout/AppShell.svelte";
   import PopupFrame from "$lib/components/layout/PopupFrame.svelte";
@@ -11,6 +11,12 @@
   import { trackAppStarted, trackSettingsOpened } from "$lib/analytics";
 
   let settingsOpen = $state(false);
+
+  async function closeSettings() {
+    settingsOpen = false;
+    await tick();
+    document.querySelector<HTMLButtonElement>('[aria-label="Open settings"]')?.focus();
+  }
 
   $effect(() => {
     if (settingsOpen) trackSettingsOpened();
@@ -34,7 +40,7 @@
     <div class="relative min-h-0 flex-1">
       {#if settingsOpen}
         <div class="absolute inset-0" in:fly={{ x: 16, duration: swapMs }} out:fly={{ x: 16, duration: swapMs }}>
-          <SettingsPanel onclose={() => (settingsOpen = false)} />
+          <SettingsPanel onclose={closeSettings} />
         </div>
       {:else}
         <div class="absolute inset-0" in:fly={{ x: -16, duration: swapMs }} out:fly={{ x: -16, duration: swapMs }}>
