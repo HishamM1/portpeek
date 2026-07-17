@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build && node scripts/prepare-cli.js && cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml",
+    "beforeBuildCommand": "pnpm build && cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml",
     "frontendDist": "../build"
   },
   "app": {
