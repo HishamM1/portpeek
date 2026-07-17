@@ -16,7 +16,7 @@
   let localSource = $derived(port.cachedFaviconPath ? convertFileSrc(port.cachedFaviconPath) : null);
   let brand = $derived(brandSlug(port));
   let brandSource = $derived(brand ? (brand.startsWith("https://") ? brand : `https://cdn.simpleicons.org/${brand}`) : null);
-  let source = $derived([localSource, brandSource].find((candidate) => candidate && !failed.has(candidate)) ?? null);
+  let source = $derived([brandSource, localSource].find((candidate) => candidate && !failed.has(candidate)) ?? null);
 
   function markFailed(): void {
     if (source) failed = new Set([...failed, source]);

@@ -230,18 +230,6 @@ fn detect_config(root: &Path) -> Option<FrameworkDetection> {
         (&["astro.config.mjs", "astro.config.js", "astro.config.ts"][..], "Astro"),
         (&["manage.py"][..], "Django"),
         (&["artisan"][..], "Laravel"),
-        (&["Cargo.toml"][..], "Rust"),
-        (&["go.mod"][..], "Go"),
-        (&["composer.json"][..], "PHP"),
-        (&["mix.exs"][..], "Elixir"),
-        (&["pubspec.yaml"][..], "Dart"),
-        (&["pubspec.yml"][..], "Dart"),
-        (&["Program.cs"][..], ".NET"),
-        (&["pom.xml"][..], "Java"),
-        (&["build.gradle"][..], "Java"),
-        (&["build.gradle.kts"][..], "Java"),
-        (&["Gemfile"][..], "Ruby"),
-        (&["requirements.txt"][..], "Python"),
     ];
 
     for (files, name) in flat_candidates {
@@ -679,7 +667,32 @@ fn detect_config(root: &Path) -> Option<FrameworkDetection> {
         ));
     }
 
-    None
+    let generic = if root.join("Cargo.toml").exists() {
+        Some("Rust")
+    } else if root.join("go.mod").exists() {
+        Some("Go")
+    } else if root.join("composer.json").exists() {
+        Some("PHP")
+    } else if root.join("mix.exs").exists() {
+        Some("Elixir")
+    } else if root.join("pubspec.yaml").exists() || root.join("pubspec.yml").exists() {
+        Some("Dart")
+    } else if root.join("Program.cs").exists() {
+        Some(".NET")
+    } else if root.join("pom.xml").exists()
+        || root.join("build.gradle").exists()
+        || root.join("build.gradle.kts").exists()
+    {
+        Some("Java")
+    } else if root.join("Gemfile").exists() {
+        Some("Ruby")
+    } else if root.join("requirements.txt").exists() {
+        Some("Python")
+    } else {
+        None
+    };
+
+    generic.map(|name| found(name, FrameworkConfidence::Medium, FrameworkDetectionSource::ConfigFile))
 }
 
 fn detect_command(command: &str) -> Option<FrameworkDetection> {
@@ -1261,5 +1274,21 @@ mod tests {
     #[test]
     fn detect_returns_none_for_empty_input() {
         assert!(detect(None, None, None).is_none());
+    }
+
+    #[test]
+    fn config_detection_prefers_specific_frameworks_over_generic_markers() {
+        let root = std::env::temp_dir().join(format!("portpeek-framework-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+
+        fs::write(root.join("pom.xml"), "spring-boot-starter-web").unwrap();
+        assert_eq!(detect_config(&root).unwrap().name, "Spring Boot");
+
+        fs::remove_file(root.join("pom.xml")).unwrap();
+        fs::write(root.join("composer.json"), r#"{"require":{"symfony/framework-bundle":"*"}}"#).unwrap();
+        assert_eq!(detect_config(&root).unwrap().name, "Symfony");
+
+        fs::remove_dir_all(root).unwrap();
     }
 }
