@@ -93,6 +93,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
 - **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases (not yet bundled into the installer / added to PATH — tracked as a follow-up).
 - **v1.1.0:** open project folders / VS Code from port details; elevated stop via a one-off UAC prompt.
+- **v1.2.0:** **enrichment cache** (#26) — framework/favicon results for a stable listener are computed once and reused across refreshes, keyed by (PID, executable, working dir); vanished/reused-PID entries evict each scan. Cuts background CPU/I/O for long tray sessions, no visible behavior change.
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
 
@@ -130,7 +131,7 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 **Known gaps / risks / stubs:**
 - **Installer is unsigned** → Windows SmartScreen "Unknown publisher". Biggest install-funnel issue.
 - **Usage telemetry** (Aptabase, opt-out) shipped in v1.0.2; `APTABASE_KEY` is configured as a GitHub Actions secret for release builds.
-- **Stub files** (placeholders, real logic lives elsewhere): `domain/ports/filters.rs`, `infrastructure/cache.rs`, `domain/detection/types.rs`, `domain/processes/*`. Don't assume they're wired.
+- **Stub files** (placeholders, real logic lives elsewhere): `domain/ports/filters.rs`, `domain/detection/types.rs`, `domain/processes/*`. Don't assume they're wired. (`infrastructure/cache.rs` is now the wired enrichment cache — see #26.)
 - `FrameworkDetectionSource::HttpProbe` exists in the enum but HTTP probing isn't implemented.
 - **winget:** first submission is merged; future published releases trigger `winget.yml` update PRs.
 
