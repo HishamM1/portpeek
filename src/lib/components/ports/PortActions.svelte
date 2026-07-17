@@ -128,7 +128,7 @@
     busy = "restart";
     message = null;
     try {
-      await restartProcess(port.pid!, port.command!, port.workingDirectory!);
+      await restartProcess(port.pid!);
       message = "Process restarted";
       trackRestartSucceeded({ port_count: portCount, has_framework: hasFramework });
       await refreshPorts();

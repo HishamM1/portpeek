@@ -114,7 +114,7 @@ pub fn detect_vscode() -> bool {
 }
 
 #[tauri::command]
-pub fn restart_process(pid: u32, command: String, working_directory: String) -> Result<(), String> {
+pub fn restart_process(pid: u32) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
@@ -125,7 +125,9 @@ pub fn restart_process(pid: u32, command: String, working_directory: String) -> 
             true,
             ProcessRefreshKind::nothing()
                 .with_exe(UpdateKind::Always)
-                .with_user(UpdateKind::Always),
+                .with_user(UpdateKind::Always)
+                .with_cmd(UpdateKind::Always)
+                .with_cwd(UpdateKind::Always),
         );
         let process = system.process(pid_sys)
             .ok_or_else(|| "Failed to stop process: process no longer exists".to_string())?;
@@ -136,6 +138,20 @@ pub fn restart_process(pid: u32, command: String, working_directory: String) -> 
         if crate::platform::windows::processes::is_system_process(sid.as_deref(), process.exe(), &process_name, pid) {
             return Err("Failed to stop process: refusing to restart a system process".into());
         }
+
+        let args: Vec<String> = process
+            .cmd()
+            .iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+
+        if args.is_empty() {
+            return Err("Failed to restart process: process command line is unavailable".into());
+        }
+
+        let working_directory = process.cwd()
+            .map(|path| path.to_path_buf())
+            .ok_or_else(|| "Failed to restart process: process working directory is unavailable".to_string())?;
 
         crate::platform::windows::processes::terminate(pid)
             .map_err(|error| format!("Failed to stop process: {error}"))?;
@@ -157,8 +173,23 @@ pub fn restart_process(pid: u32, command: String, working_directory: String) -> 
             return Err("Failed to stop process: process did not exit within timeout".into());
         }
 
-        let mut cmd = std::process::Command::new("cmd.exe");
-        cmd.arg("/c").arg(&command);
+        let exe_path = std::path::Path::new(&args[0]);
+        let is_batch = exe_path.extension()
+            .map(|ext| ext.to_ascii_lowercase())
+            .map(|ext| ext == "bat" || ext == "cmd")
+            .unwrap_or(false);
+
+        let mut cmd = if is_batch {
+            let mut c = std::process::Command::new("cmd.exe");
+            c.arg("/c").arg(&args[0]);
+            c.args(&args[1..]);
+            c
+        } else {
+            let mut c = std::process::Command::new(&args[0]);
+            c.args(&args[1..]);
+            c
+        };
+
         cmd.current_dir(&working_directory);
 
         #[cfg(target_os = "windows")]
@@ -168,15 +199,22 @@ pub fn restart_process(pid: u32, command: String, working_directory: String) -> 
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
-        cmd.spawn()
+        let mut child = cmd.spawn()
             .map_err(|error| format!("Failed to relaunch process: {error}"))?;
 
-        Ok(())
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                Err(format!("Failed to relaunch process: process exited immediately with status {status}"))
+            }
+            Ok(None) => Ok(()),
+            Err(err) => Err(format!("Failed to relaunch process: could not verify process status: {err}")),
+        }
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = (pid, command, working_directory);
+        let _ = pid;
         Err("process restart is currently supported on Windows only".into())
     }
 }
@@ -200,13 +238,13 @@ mod tests {
     #[test]
     fn restart_process_validates_protected_processes() {
         // Attempting to restart PID 4 (System) should be rejected
-        let result = restart_process(4, "cmd.exe".to_string(), "C:\\".to_string());
+        let result = restart_process(4);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.contains("refusing to restart a system process") || err.contains("refusing to terminate a protected process"));
 
         // Attempting to restart a non-existent PID should fail cleanly
-        let result = restart_process(999999, "cmd.exe".to_string(), "C:\\".to_string());
+        let result = restart_process(999999);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("process no longer exists"));
     }
