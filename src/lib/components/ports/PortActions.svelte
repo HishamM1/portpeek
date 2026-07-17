@@ -2,6 +2,7 @@
   import Copy from "@lucide/svelte/icons/copy";
   import ExternalLink from "@lucide/svelte/icons/external-link";
   import Hash from "@lucide/svelte/icons/hash";
+  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
   import ShieldAlert from "@lucide/svelte/icons/shield-alert";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import IconButton from "$lib/components/shared/IconButton.svelte";
@@ -14,6 +15,11 @@
     trackKillSucceeded,
     trackPortOpened,
     trackPortUrlCopied,
+    trackRestartCancelled,
+    trackRestartConfirmed,
+    trackRestartFailed,
+    trackRestartRequested,
+    trackRestartSucceeded,
   } from "$lib/analytics";
   import { refreshPorts } from "$lib/stores/ports";
   import { settings } from "$lib/stores/settings";
@@ -23,6 +29,7 @@
     killProcess,
     killProcessElevated,
     openLocalhostUrl,
+    restartProcess,
   } from "$lib/tauri/commands";
   import type { PortItem } from "$lib/types/port";
 
@@ -37,7 +44,7 @@
   } = $props();
   let busy = $state<string | null>(null);
   let message = $state<string | null>(null);
-  let confirming = $state(false);
+  let actionConfirming = $state<'kill' | 'restart' | null>(null);
   let canElevate = $state(false);
   let label = $derived(port.displayName ?? port.processName ?? `PID ${port.pid}`);
   let portCount = $derived(processPorts.length || 1);
@@ -84,14 +91,14 @@
     if (port.pid === null) return;
     trackKillRequested();
     if ($settings.confirmBeforeKill) {
-      confirming = true;
+      actionConfirming = "kill";
       return;
     }
     void run("kill", () => killProcess(port.pid!));
   }
 
   function confirmKill(): void {
-    confirming = false;
+    actionConfirming = null;
     trackKillConfirmed();
     void run("kill", () => killProcess(port.pid!));
   }
@@ -101,9 +108,45 @@
     void run("kill-admin", () => killProcessElevated(port.pid!));
   }
 
-  function cancelKill(): void {
-    confirming = false;
-    trackKillCancelled();
+  function requestRestart(): void {
+    if (port.pid === null || !port.command || !port.workingDirectory) return;
+    trackRestartRequested();
+    if ($settings.confirmBeforeKill) {
+      actionConfirming = "restart";
+      return;
+    }
+    void runRestart();
+  }
+
+  function confirmRestart(): void {
+    actionConfirming = null;
+    trackRestartConfirmed();
+    void runRestart();
+  }
+
+  async function runRestart(): Promise<void> {
+    busy = "restart";
+    message = null;
+    try {
+      await restartProcess(port.pid!, port.command!, port.workingDirectory!);
+      message = "Process restarted";
+      trackRestartSucceeded({ port_count: portCount, has_framework: hasFramework });
+      await refreshPorts();
+    } catch (error) {
+      message = String(error);
+      trackRestartFailed({ error_type: errorType(error) });
+    } finally {
+      busy = null;
+    }
+  }
+
+  function cancelAction(): void {
+    if (actionConfirming === "kill") {
+      trackKillCancelled();
+    } else if (actionConfirming === "restart") {
+      trackRestartCancelled();
+    }
+    actionConfirming = null;
   }
 
   function autofocus(node: HTMLElement): void {
@@ -113,7 +156,7 @@
 
 <svelte:window
   onkeydown={(event) => {
-    if (confirming && event.key === "Escape") cancelKill();
+    if (actionConfirming !== null && event.key === "Escape") cancelAction();
   }}
 />
 
@@ -143,26 +186,48 @@
   </div>
 {:else}
   <div class="flex min-h-12 items-center gap-2 border-t border-[var(--border-subtle)] px-3 py-2">
-    {#if confirming}
-      <span class="min-w-0 flex-1 text-[11px] font-medium leading-snug text-[var(--text-primary)]">
-        Stop {label}?{#if portCount > 1}<span class="text-[var(--text-secondary)]"> Frees {portCount} ports.</span>{/if}
-      </span>
-      <button
-        type="button"
-        onclick={cancelKill}
-        class="inline-flex h-8 shrink-0 items-center rounded-lg px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)]"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        use:autofocus
-        onclick={confirmKill}
-        class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--danger)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90"
-      >
-        <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
-        Stop
-      </button>
+    {#if actionConfirming !== null}
+      {#if actionConfirming === "kill"}
+        <span class="min-w-0 flex-1 text-[11px] font-medium leading-snug text-[var(--text-primary)]">
+          Stop {label}?{#if portCount > 1}<span class="text-[var(--text-secondary)]"> Frees {portCount} ports.</span>{/if}
+        </span>
+        <button
+          type="button"
+          onclick={cancelAction}
+          class="inline-flex h-8 shrink-0 items-center rounded-lg px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          use:autofocus
+          onclick={confirmKill}
+          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--danger)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90"
+        >
+          <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
+          Stop
+        </button>
+      {:else if actionConfirming === "restart"}
+        <span class="min-w-0 flex-1 text-[11px] font-medium leading-snug text-[var(--text-primary)]">
+          Restart {label}?
+        </span>
+        <button
+          type="button"
+          onclick={cancelAction}
+          class="inline-flex h-8 shrink-0 items-center rounded-lg px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          use:autofocus
+          onclick={confirmRestart}
+          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90"
+        >
+          <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+          Restart
+        </button>
+      {/if}
     {:else}
       <span class="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-muted)]" aria-live="polite">{message ?? endpointLabel}</span>
       {#if canElevate}
@@ -177,6 +242,18 @@
           Stop as admin
         </button>
       {:else}
+        {#if port.command && port.workingDirectory}
+          <button
+            type="button"
+            disabled={port.pid === null || busy !== null || port.isSystemPort}
+            title={port.isSystemPort ? "Protected system process" : "Restart process"}
+            onclick={requestRestart}
+            class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+          >
+            <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+            Restart
+          </button>
+        {/if}
         <button
           type="button"
           disabled={port.pid === null || busy !== null || port.isSystemPort}

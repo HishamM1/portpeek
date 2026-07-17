@@ -36,6 +36,7 @@ pub fn run() {
             crate::commands::ports::list_ports,
             crate::commands::ports::kill_process,
             crate::commands::ports::kill_process_elevated,
+            crate::commands::ports::restart_process,
             crate::commands::ports::open_localhost_url,
             crate::commands::ports::copy_localhost_url,
             crate::commands::ports::copy_port,
@@ -47,6 +48,7 @@ pub fn run() {
             crate::commands::settings::update_settings,
             crate::commands::window::show_popup_window,
             crate::commands::window::hide_popup_window,
+            crate::commands::window::minimize_popup_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PortPeek");

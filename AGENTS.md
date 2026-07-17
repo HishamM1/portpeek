@@ -93,6 +93,8 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
 - **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases (not yet bundled into the installer / added to PATH — tracked as a follow-up).
 - **v1.1.0:** open project folders / VS Code from port details; elevated stop via a one-off UAC prompt.
+- **v1.2.0:** **CLI Companion bundling & PATH integration** — The installer bundles `portpeek.exe` under `$INSTDIR\bin` and prompts the user to add it to their current-user PATH. Registry updates are fully duplicate-preventive, and uninstallation removes only the PortPeek-created PATH entries and directories.
+- **v1.2.0:** **Restart process action** — Best-effort restart process action when command line and working directory are available. Integrates with confirmation settings and protected process/system classification rules.
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
 
@@ -104,7 +106,7 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 - **Next / in flight:** **v1.2.0** — `release/1.2.0`: #14 bundle CLI/add to PATH, #15 PortPeek MCP server, #24 expanded technology detection/icons, #26 enrichment cache, #27 restart process, #31 minimize/settings-back controls.
 - **Planned after (unassigned to a version):** #4 Windows code signing (SmartScreen) — blocked on an owner decision (SignPath Foundation / Azure Trusted Signing / EV cert) + secrets. Pin scope to a **GitHub milestone** when you schedule a version.
 
-**On each release:**
+On each release:
 1. Bump the version in all three files (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) and tag `vX.Y.Z`.
 2. Update this section: set **Shipped** to the new version, move that version's scope into **Current features**, and fill **Next / in flight** with the next version + the features/issues planned for it.
 
@@ -113,11 +115,11 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 **Shipped:** `main` = **v1.1.0** — the **Current features** list above is what's live.
 
 **In flight — `release/1.2.0` branch:**
-- #14 bundle CLI/add to PATH — `feat/issue-14-cli-installer-path`.
+- [x] #14 bundle CLI/add to PATH — `feat/issue-14-cli-installer-path` (Completed).
 - #15 PortPeek MCP server — `feat/issue-15-mcp-server`.
 - #24 expanded technology detection/icons — `feat/issue-24-technology-detection`.
 - #26 enrichment cache — `perf/issue-26-enrichment-cache`.
-- #27 restart process — `feat/issue-27-restart-process`.
+- [x] #27 restart process — `feat/issue-27-restart-process` (Completed).
 - #31 minimize/settings-back controls — `feat/issue-31-window-settings-controls`.
 - Version bumped to 1.2.0 on the branch; implementation PRs start as drafts.
 

@@ -168,7 +168,7 @@ fn display_name(process_name: &str, cwd: Option<&Path>) -> Option<String> {
 // A listener is a "system" port when its owning process is a Windows OS process:
 // running under a built-in system account, the kernel (pid <= 4), or an executable
 // inside the Windows directory. Owner account is the authoritative signal.
-fn is_system_process(sid: Option<&str>, exe: Option<&Path>, name: &str, pid: u32) -> bool {
+pub(crate) fn is_system_process(sid: Option<&str>, exe: Option<&Path>, name: &str, pid: u32) -> bool {
     pid <= 4
         || matches!(sid, Some("S-1-5-18" | "S-1-5-19" | "S-1-5-20"))
         || exe.is_some_and(is_under_system_root)
