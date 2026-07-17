@@ -101,7 +101,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 The current/next-version tracker. **Keep it accurate on every release** — it's how the next session knows where things stand and what's slated next.
 
 - **Shipped:** **v1.1.0** (tagged and released).
-- **Next / in flight:** **v1.2.0** — `release/1.2.0`: #14 bundle CLI/add to PATH, #15 PortPeek MCP server, #24 expanded technology detection/icons, #26 enrichment cache, #27 restart process.
+- **Next / in flight:** **v1.2.0** — `release/1.2.0`: #14 bundle CLI/add to PATH, #15 PortPeek MCP server, #24 expanded technology detection/icons, #26 enrichment cache, #27 restart process, #31 minimize/settings-back controls.
 - **Planned after (unassigned to a version):** #4 Windows code signing (SmartScreen) — blocked on an owner decision (SignPath Foundation / Azure Trusted Signing / EV cert) + secrets. Pin scope to a **GitHub milestone** when you schedule a version.
 
 **On each release:**
@@ -118,10 +118,11 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 - #24 expanded technology detection/icons — `feat/issue-24-technology-detection`.
 - #26 enrichment cache — `perf/issue-26-enrichment-cache`.
 - #27 restart process — `feat/issue-27-restart-process`.
+- #31 minimize/settings-back controls — `feat/issue-31-window-settings-controls`.
 - Version bumped to 1.2.0 on the branch; implementation PRs start as drafts.
 
 **Planned — tracked as GitHub Issues (label `enhancement`), each with a design plan in its body:**
-- **In flight, `release/1.2.0`:** #14 CLI installer/PATH · #15 MCP server · #24 technology detection/icons · #26 enrichment cache · #27 restart process.
+- **In flight, `release/1.2.0`:** #14 CLI installer/PATH · #15 MCP server · #24 technology detection/icons · #26 enrichment cache · #27 restart process · #31 minimize/settings-back controls.
 - **Planned after:** #4 Windows code signing (SmartScreen).
 - Not yet filed: group by project, macOS/Linux.
 - **Ideas live in Issues, not branches.** Feature branches for release work should be created from the active release branch, not off `main`.
