@@ -32,6 +32,10 @@ pub fn hide(app: &AppHandle) -> tauri::Result<()> {
     main_window(app)?.hide()
 }
 
+pub fn minimize(app: &AppHandle) -> tauri::Result<()> {
+    main_window(app)?.minimize()
+}
+
 pub fn toggle(app: &AppHandle) -> tauri::Result<bool> {
     let window = main_window(app)?;
 

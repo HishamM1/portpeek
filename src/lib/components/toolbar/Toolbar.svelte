@@ -1,5 +1,6 @@
 <script lang="ts">
   import Activity from "@lucide/svelte/icons/activity";
+  import Minus from "@lucide/svelte/icons/minus";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
   import Settings from "@lucide/svelte/icons/settings";
   import X from "@lucide/svelte/icons/x";
@@ -9,7 +10,7 @@
   import ShowAllToggle from "$lib/components/toolbar/ShowAllToggle.svelte";
   import { visiblePorts } from "$lib/stores/filters";
   import { refreshPorts } from "$lib/stores/ports";
-  import { hidePopupWindow } from "$lib/tauri/commands";
+  import { hidePopupWindow, minimizePopupWindow } from "$lib/tauri/commands";
   import { slide } from "svelte/transition";
 
   let { settingsOpen = $bindable(false) }: { settingsOpen?: boolean } = $props();
@@ -49,6 +50,9 @@
       onclick={() => (settingsOpen = !settingsOpen)}
     >
       <Settings size={15} strokeWidth={1.8} />
+    </IconButton>
+    <IconButton label="Minimize PortPeek" onclick={() => void minimizePopupWindow()}>
+      <Minus size={16} strokeWidth={1.8} />
     </IconButton>
     <IconButton label="Hide PortPeek" onclick={() => void hidePopupWindow()}>
       <X size={16} strokeWidth={1.8} />

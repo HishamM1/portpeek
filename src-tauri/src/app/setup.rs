@@ -47,6 +47,7 @@ pub fn run() {
             crate::commands::settings::update_settings,
             crate::commands::window::show_popup_window,
             crate::commands::window::hide_popup_window,
+            crate::commands::window::minimize_popup_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PortPeek");

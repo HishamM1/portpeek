@@ -34,7 +34,7 @@
     <div class="relative min-h-0 flex-1">
       {#if settingsOpen}
         <div class="absolute inset-0" in:fly={{ x: 16, duration: swapMs }} out:fly={{ x: 16, duration: swapMs }}>
-          <SettingsPanel />
+          <SettingsPanel onclose={() => (settingsOpen = false)} />
         </div>
       {:else}
         <div class="absolute inset-0" in:fly={{ x: -16, duration: swapMs }} out:fly={{ x: -16, duration: swapMs }}>
