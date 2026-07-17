@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build && cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml",
+    "beforeBuildCommand": "pnpm build && cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml && copy /Y src-tauri\\target\\release\\portpeek-cli.exe src-tauri\\resources\\portpeek-cli.exe",
     "frontendDist": "../build"
   },
   "app": {
@@ -37,7 +37,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "resources": {
-      "target/release/portpeek-cli.exe": "portpeek-cli.exe"
+      "resources": ""
     },
     "targets": ["nsis"],
     "windows": {
