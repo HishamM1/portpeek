@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build && node scripts/prepare-cli.js && cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml",
     "frontendDist": "../build"
   },
   "app": {
@@ -36,6 +36,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
+    "resources": {
+      "target/release/portpeek-cli.exe": "portpeek-cli.exe"
+    },
     "targets": ["nsis"],
     "windows": {
       "allowDowngrades": false,
@@ -45,7 +48,8 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "installer-hooks.nsh"
       }
     },
     "icon": [

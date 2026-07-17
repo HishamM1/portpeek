@@ -3,6 +3,7 @@ name = "portpeek"
 version = "1.2.0"
 description = "A Windows-first localhost port tray utility."
 edition = "2021"
+default-run = "PortPeek"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,7 +19,7 @@ name = "PortPeek"
 path = "src/main.rs"
 
 [[bin]]
-name = "portpeek"
+name = "portpeek-cli"
 path = "src/bin/portpeek-cli.rs"
 
 [build-dependencies]
