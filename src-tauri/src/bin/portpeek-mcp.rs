@@ -61,6 +61,17 @@ impl Server {
     /// Routes a JSON-RPC message. Returns `Some(response)` for requests and
     /// `None` for notifications (no `id`) and unanswerable garbage.
     fn handle(&mut self, request: &Value) -> Option<Value> {
+        // A JSON-RPC message must be an object. Anything else (number, string,
+        // array) is an invalid request — reject it before the notification
+        // fast-path so a non-object can't slip through as a silent notification.
+        if !request.is_object() {
+            return Some(error(
+                Value::Null,
+                -32600,
+                "invalid request: message must be a JSON object",
+            ));
+        }
+
         let jsonrpc_ok = request.get("jsonrpc").and_then(Value::as_str) == Some("2.0");
         let method = request.get("method").and_then(Value::as_str);
 
@@ -315,6 +326,21 @@ fn free_port(arguments: &Value) -> Result<Value, String> {
     if freed.is_empty() {
         return Err(format!("failed to free port {port}: {}", errors.join("; ")));
     }
+    // Partial failure: some owning PIDs could not be stopped, so the port may
+    // still be in use. Report it as a tool error (isError) rather than success,
+    // but keep the stopped-vs-failed detail in the message so the model can act.
+    if !errors.is_empty() {
+        let freed_list = freed
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(format!(
+            "port {port} only partially freed — stopped pid(s) {freed_list}; \
+failed: {}. The port may still be in use.",
+            errors.join("; ")
+        ));
+    }
 
     Ok(json!({
         "port": port,
@@ -530,6 +556,18 @@ mod tests {
             .handle(&json!({ "jsonrpc": "2.0", "id": 5 }))
             .unwrap();
         assert_eq!(response["error"]["code"], -32600);
+    }
+
+    #[test]
+    fn non_object_message_is_invalid_request() {
+        let mut server = Server::default();
+        for garbage in [json!(42), json!("hi"), json!([1, 2, 3])] {
+            let response = server.handle(&garbage).unwrap();
+            assert_eq!(response["error"]["code"], -32600);
+            assert!(response["id"].is_null());
+        }
+        // A bare non-object must not advance lifecycle state.
+        assert!(!server.initialized);
     }
 
     #[test]
