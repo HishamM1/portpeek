@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { brandSlug, groupPorts, isDatabase } from "./ports.js";
+import { brandIconUrl, brandSlug, groupPorts, iconSources, isDatabase } from "./ports.js";
 
 const port = (id, pid, number, processName = "node.exe") => ({
   id,
@@ -126,4 +126,41 @@ test("maps all Phase 2 framework brands correctly", () => {
 
 test("returns null for unknown framework", () => {
   assert.equal(brandSlug(portWithFramework("x", 0, 8080, "node.exe", "UnknownFrameworkXYZ")), null);
+});
+
+// Issue #24 icon precedence: a detected runtime/service/framework brand wins
+// over a project-local favicon, and a brand-only listener never falls back to
+// the local (possibly PortPeek) favicon — the component uses a Lucide icon.
+const LOCAL = "asset://localhost/project/favicon.ico";
+
+test("brand icon wins over a project-local favicon and excludes it as fallback", () => {
+  // Java process launched from a directory with a cached favicon (e.g. PortPeek's).
+  const java = portWithFramework("j", 1, 8080, "java.exe", "Java");
+  assert.deepEqual(iconSources(java, LOCAL), [brandIconUrl("openjdk")]);
+
+  // TablePlus and Antigravity must never show the project/PortPeek favicon.
+  const tableplus = portWithFramework("t", 2, 5432, "TablePlus.exe", "TablePlus");
+  assert.deepEqual(iconSources(tableplus, LOCAL), [brandIconUrl("tableplus")]);
+
+  const antigravity = portWithFramework("a", 3, 3000, "agy.exe", "Antigravity");
+  assert.deepEqual(iconSources(antigravity, LOCAL), [brandIconUrl("antigravity")]);
+
+  // Spring Boot (specific web framework) beats the local favicon too.
+  const spring = portWithFramework("s", 4, 8081, "java.exe", "Spring Boot");
+  assert.deepEqual(iconSources(spring, LOCAL), [brandIconUrl("spring")]);
+});
+
+test("local favicon is used only for an otherwise-generic web project", () => {
+  // Plain node process, no framework, no recognizable app brand → use local favicon.
+  const generic = port("g", 5, 3000, "node.exe");
+  assert.deepEqual(iconSources(generic, LOCAL), [LOCAL]);
+
+  // No brand and no local favicon → no candidates (component draws a Lucide icon).
+  assert.deepEqual(iconSources(generic, null), []);
+});
+
+test("brandIconUrl resolves slugs to the CDN and passes full URLs through", () => {
+  assert.equal(brandIconUrl("openjdk"), "https://cdn.simpleicons.org/openjdk");
+  assert.equal(brandIconUrl("https://code.visualstudio.com/favicon.ico"), "https://code.visualstudio.com/favicon.ico");
+  assert.equal(brandIconUrl(null), null);
 });

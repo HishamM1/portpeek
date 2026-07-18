@@ -174,6 +174,36 @@ export function brandSlug(port) {
 }
 
 /**
+ * Resolve a brand slug to a loadable icon URL (Simple Icons CDN, or a full URL
+ * mapping passed through as-is).
+ * @param {string | null} brand
+ * @returns {string | null}
+ */
+export function brandIconUrl(brand) {
+  if (!brand) return null;
+  return brand.startsWith("https://") ? brand : `https://cdn.simpleicons.org/${brand}`;
+}
+
+/**
+ * Ordered icon-source candidates for a listener, honoring issue #24 precedence:
+ * a confidently detected runtime/service/framework brand (Java, OpenSSH,
+ * TablePlus, Antigravity, Spring Boot, …) wins over an unrelated project-local
+ * favicon. When a brand is present we deliberately do NOT include the local
+ * favicon as a fallback — if the brand's remote icon fails, the component falls
+ * back to a built-in Lucide category icon, never to the project (or PortPeek)
+ * favicon. The local favicon is only used when no brand is detected, i.e. for
+ * an otherwise-generic web project.
+ * @param {PortItem} port
+ * @param {string | null} localSource resolved local-favicon URL, if any
+ * @returns {string[]} candidate URLs in priority order
+ */
+export function iconSources(port, localSource) {
+  const brandSource = brandIconUrl(brandSlug(port));
+  if (brandSource) return [brandSource];
+  return localSource ? [localSource] : [];
+}
+
+/**
  * A bound socket is "exposed" when it listens on a non-loopback address
  * (0.0.0.0, ::, or a concrete LAN IP) — reachable from other machines.
  * @param {string} address
