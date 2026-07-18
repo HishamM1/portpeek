@@ -129,7 +129,7 @@
     message = null;
     try {
       await restartProcess(port.pid!);
-      message = "Process restarted";
+      message = "Process relaunched";
       trackRestartSucceeded({ port_count: portCount, has_framework: hasFramework });
       await refreshPorts();
     } catch (error) {
@@ -246,7 +246,9 @@
           <button
             type="button"
             disabled={port.pid === null || busy !== null || port.isSystemPort}
-            title={port.isSystemPort ? "Protected system process" : "Restart process"}
+            title={port.isSystemPort
+              ? "Protected system process"
+              : "Restart process — reruns the captured command in its folder. The original terminal environment is not restored."}
             onclick={requestRestart}
             class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-[11px] font-semibold text-[var(--text-inverse)] shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
           >
