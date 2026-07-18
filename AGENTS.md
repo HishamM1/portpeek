@@ -61,7 +61,7 @@ enrich (framework/favicon) → PortItem[] → ports store → filters → PortLi
 - `platform/windows/` — OS-specific. `ports.rs` (TCP+UDP enumeration via Win32 `GetExtendedTcp/UdpTable`), `processes.rs` (`enrich` via `sysinfo`, `is_system_process` classification, `terminate` with protections), `editors.rs` (`has_vscode` — checks `code` on PATH).
 - `infrastructure/` — `logging.rs` (tracing), `paths.rs` (settings persistence: atomic write + backup).
 - `state/app_state.rs` — `AppState { settings: Mutex<Settings> }`, managed via `app.manage(...)`.
-- **`bin/portpeek-cli.rs`** — a second `[[bin]]` (`portpeek`, lowercase — the GUI is `PortPeek`), not tied to Tauri. Depends on `domain`/`platform` being `pub mod` in `lib.rs` (only what the CLI needs; `app`/`commands`/`infrastructure`/`state` stay private). Reuses `platform::windows::{ports, processes}` directly — no `AppHandle`, so no framework/favicon detection (that needs one). `clap` (derive) for args; a hand-rolled table formatter, no table crate.
+- **`bin/portpeek-cli.rs`** — a second `[[bin]]` (`portpeek-cli`, renamed to avoid build-time case-insensitive collisions with the `PortPeek` GUI on Windows), not tied to Tauri. Reuses `platform::windows::{ports, processes}` directly — no `AppHandle`. `clap` (derive) for args; a hand-rolled table formatter. Copied/renamed to `portpeek.exe` under `$INSTDIR\bin` during install.
 
 **Where things live (for new work):**
 - Port scanning / process detection → `platform/windows/` (add other OSes as `platform/<os>/`).
@@ -91,7 +91,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Around the app:** landing page with an interactive demo; CI (release + winget); auto-generated icons/tray.
 - **v1.0.2:** SID-based **system-port classification by process identity** (owner account / kernel / `%SystemRoot%`, not port number); removed "minimize when it loses focus" (looping bug); settings **dropdown chevrons**.
 - **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
-- **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases (not yet bundled into the installer / added to PATH — tracked as a follow-up).
+- **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases.
 - **v1.1.0:** open project folders / VS Code from port details; elevated stop via a one-off UAC prompt.
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
