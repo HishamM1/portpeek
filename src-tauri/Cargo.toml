@@ -21,6 +21,10 @@ path = "src/main.rs"
 name = "portpeek"
 path = "src/bin/portpeek-cli.rs"
 
+[[bin]]
+name = "portpeek-mcp"
+path = "src/bin/portpeek-mcp.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
