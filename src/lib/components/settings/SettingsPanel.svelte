@@ -10,6 +10,15 @@
 
   let { onclose }: { onclose?: () => void } = $props();
 
+  function onKeydown(event: KeyboardEvent): void {
+    // Escape backs out to the port list, mirroring the Back button. Skip when a
+    // native <select> is focused so Escape can cancel its open dropdown instead.
+    if (event.key !== "Escape" || !onclose) return;
+    if (event.target instanceof HTMLSelectElement) return;
+    event.preventDefault();
+    onclose();
+  }
+
   function update<K extends keyof Settings>(key: K, value: Settings[K]): void {
     void saveSettings({ ...$settings, [key]: value });
     if (key !== "shareUsage") {
@@ -115,6 +124,8 @@
     <path d="m6 9 6 6 6-6" />
   </svg>
 {/snippet}
+
+<svelte:window onkeydown={onKeydown} />
 
 <section class="h-full overflow-y-auto px-4 pb-4 pt-3" aria-label="Settings">
   {#if onclose}

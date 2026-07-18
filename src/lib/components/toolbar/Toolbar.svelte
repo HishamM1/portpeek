@@ -45,6 +45,7 @@
       <RefreshCw size={15} strokeWidth={1.8} class={refreshing ? "animate-spin" : ""} />
     </IconButton>
     <IconButton
+      id="settings-toggle"
       label={settingsOpen ? "Back to ports" : "Open settings"}
       active={settingsOpen}
       onclick={() => (settingsOpen = !settingsOpen)}

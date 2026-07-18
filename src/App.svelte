@@ -14,8 +14,10 @@
 
   async function closeSettings() {
     settingsOpen = false;
+    // Return focus to the persistent Settings trigger in the toolbar. tick() lets
+    // Svelte reconcile the view swap first so the button is present and focusable.
     await tick();
-    document.querySelector<HTMLButtonElement>('[aria-label="Open settings"]')?.focus();
+    document.getElementById("settings-toggle")?.focus();
   }
 
   $effect(() => {
