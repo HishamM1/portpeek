@@ -46,6 +46,7 @@ const frameworkBrands = new Map([
   ["vite", "vite"],
   ["react", "react"],
   ["vue", "vuedotjs"],
+  ["node.js", "nodedotjs"],
   ["node", "nodedotjs"],
   ["django", "django"],
   ["fastapi", "fastapi"],
@@ -54,6 +55,94 @@ const frameworkBrands = new Map([
   ["php", "php"],
   ["go", "go"],
   ["rust", "rust"],
+  // Phase 1 — Runtimes & frameworks
+  [".net", "dotnet"],
+  ["asp.net", "dotnet"],
+  ["java", "openjdk"],
+  ["spring boot", "spring"],
+  ["apache tomcat", "apachetomcat"],
+  ["quarkus", "quarkus"],
+  ["micronaut", "micronaut"],
+  ["flask", "flask"],
+  ["express", "express"],
+  ["nestjs", "nestjs"],
+  ["iis express", "iis"],
+  ["openssh", "openssh"],
+  ["nginx", "nginx"],
+  ["caddy", "caddy"],
+  ["apache http server", "apache"],
+  ["uvicorn", "uvicorn"],
+  ["gunicorn", "gunicorn"],
+  ["streamlit", "streamlit"],
+  ["jupyter", "jupyter"],
+  ["astro", "astro"],
+  ["deno", "deno"],
+  ["bun", "bun"],
+  ["puma", "puma"],
+  ["phoenix", "phoenixframework"],
+  ["elixir", "elixir"],
+  ["antigravity", "antigravity"],
+  ["tableplus", "tableplus"],
+  // Phase 1 — Infrastructure
+  ["sql server", "microsoftsqlserver"],
+  ["rabbitmq", "rabbitmq"],
+  ["apache kafka", "apachekafka"],
+  ["minio", "minio"],
+  ["localstack", "localstack"],
+  ["mailpit", "mailpit"],
+  ["mailhog", "mailhog"],
+  ["memcached", "memcached"],
+  ["hashicorp vault", "vault"],
+  ["hashicorp consul", "consul"],
+  ["prometheus", "prometheus"],
+  ["grafana", "grafana"],
+  ["traefik", "traefik"],
+  // Phase 1 — Databases
+  ["mysql", "mysql"],
+  ["mariadb", "mariadb"],
+  ["mongodb", "mongodb"],
+  ["postgresql", "postgresql"],
+  ["redis", "redis"],
+  ["cockroachdb", "cockroachlabs"],
+  ["influxdb", "influxdb"],
+  ["elasticsearch", "elasticsearch"],
+  ["neo4j", "neo4j"],
+  ["cassandra", "apachecassandra"],
+  ["clickhouse", "clickhouse"],
+  // Phase 2
+  ["jetty", "jetty"],
+  ["wildfly", "wildfly"],
+  ["ktor", "ktor"],
+  ["play framework", "playframework"],
+  ["grails", "grails"],
+  ["hypercorn", "hypercorn"],
+  ["gradio", "gradio"],
+  ["fastify", "fastify"],
+  ["hapi", "hapi"],
+  ["koa", "koajs"],
+  ["adonisjs", "adonisjs"],
+  ["remix", "remix"],
+  ["symfony", "symfony"],
+  ["codeigniter", "codeigniter"],
+  ["wordpress", "wordpress"],
+  ["sinatra", "sinatra"],
+  ["erlang", "erlang"],
+  ["axum", "axum"],
+  ["actix web", "actix"],
+  ["rocket", "rocket"],
+  ["warp", "warp"],
+  ["gin", "gin"],
+  ["fiber", "gofiber"],
+  ["echo", "echo"],
+  ["dart", "dart"],
+  ["flutter", "flutter"],
+  ["grpc", "grpc"],
+  ["jaeger", "jaeger"],
+  ["opentelemetry collector", "opentelemetry"],
+  ["envoy", "envoy"],
+  // Generic runtimes (low confidence)
+  ["python", "python"],
+  ["ruby", "ruby"],
 ]);
 
 /** @param {PortItem[]} ports */
@@ -82,6 +171,36 @@ export function brandSlug(port) {
     .toLowerCase();
 
   return appBrands.find(([terms]) => terms.some((term) => text.includes(term)))?.[1] ?? null;
+}
+
+/**
+ * Resolve a brand slug to a loadable icon URL (Simple Icons CDN, or a full URL
+ * mapping passed through as-is).
+ * @param {string | null} brand
+ * @returns {string | null}
+ */
+export function brandIconUrl(brand) {
+  if (!brand) return null;
+  return brand.startsWith("https://") ? brand : `https://cdn.simpleicons.org/${brand}`;
+}
+
+/**
+ * Ordered icon-source candidates for a listener, honoring issue #24 precedence:
+ * a confidently detected runtime/service/framework brand (Java, OpenSSH,
+ * TablePlus, Antigravity, Spring Boot, …) wins over an unrelated project-local
+ * favicon. When a brand is present we deliberately do NOT include the local
+ * favicon as a fallback — if the brand's remote icon fails, the component falls
+ * back to a built-in Lucide category icon, never to the project (or PortPeek)
+ * favicon. The local favicon is only used when no brand is detected, i.e. for
+ * an otherwise-generic web project.
+ * @param {PortItem} port
+ * @param {string | null} localSource resolved local-favicon URL, if any
+ * @returns {string[]} candidate URLs in priority order
+ */
+export function iconSources(port, localSource) {
+  const brandSource = brandIconUrl(brandSlug(port));
+  if (brandSource) return [brandSource];
+  return localSource ? [localSource] : [];
 }
 
 /**
