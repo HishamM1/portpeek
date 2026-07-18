@@ -94,6 +94,8 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
 - **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases.
 - **v1.1.0:** open project folders / VS Code from port details; elevated stop via a one-off UAC prompt.
+- **v1.2.0:** **CLI Companion bundling & PATH integration** — The installer bundles `portpeek.exe` under `$INSTDIR\bin` and prompts the user to add it to their current-user PATH. Registry updates are fully duplicate-preventive, and uninstallation removes only the PortPeek-created PATH entries and directories.
+- **v1.2.0:** **Restart process action** — Best-effort restart when a launch command and working directory are available. The invocation is reconstructed **server-side** (executable image path + real argument vector + cwd, via `sysinfo`) and relaunched by spawning the executable **directly** with its argument vector — never re-joined/re-split through a shell, and the client never supplies the command string (only the PID). It refuses system/protected processes and bails out before terminating if the invocation can't be reproduced (so it never kills-without-relaunching), then verifies the relaunched process started before reporting success. Integrates with the confirm-before-kill setting. Known limit: the original terminal environment is not restored.
 - **v1.2.0:** **PortPeek MCP server** (#15) — standalone `portpeek-mcp.exe` speaking MCP over stdio, so AI clients can `list_ports` / `inspect_port` / `free_port` through PortPeek's scan and protected-process guards. Listing hides paths/commands; full detail only via `inspect_port`; system ports can't be freed. See `docs/mcp.md`.
 - **v1.2.0:** **enrichment cache** (#26) — framework/favicon results for a stable listener are computed once and reused across refreshes, keyed by (PID, executable, working dir); vanished/reused-PID entries evict each scan. Cuts background CPU/I/O for long tray sessions, no visible behavior change.
 
@@ -107,7 +109,7 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 - **Next / in flight:** **v1.2.0** — `release/1.2.0`: #14 bundle CLI/add to PATH, #15 PortPeek MCP server, #24 expanded technology detection/icons, #26 enrichment cache, #27 restart process, #31 minimize/settings-back controls.
 - **Planned after (unassigned to a version):** #4 Windows code signing (SmartScreen) — blocked on an owner decision (SignPath Foundation / Azure Trusted Signing / EV cert) + secrets. Pin scope to a **GitHub milestone** when you schedule a version.
 
-**On each release:**
+On each release:
 1. Bump the version in all three files (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`) and tag `vX.Y.Z`.
 2. Update this section: set **Shipped** to the new version, move that version's scope into **Current features**, and fill **Next / in flight** with the next version + the features/issues planned for it.
 
@@ -116,11 +118,11 @@ The current/next-version tracker. **Keep it accurate on every release** — it's
 **Shipped:** `main` = **v1.1.0** — the **Current features** list above is what's live.
 
 **In flight — `release/1.2.0` branch:**
-- #14 bundle CLI/add to PATH — `feat/issue-14-cli-installer-path`.
+- [x] #14 bundle CLI/add to PATH — `feat/issue-14-cli-installer-path` (Completed).
 - #15 PortPeek MCP server — `feat/issue-15-mcp-server`.
 - #24 expanded technology detection/icons — `feat/issue-24-technology-detection`.
 - #26 enrichment cache — `perf/issue-26-enrichment-cache`.
-- #27 restart process — `feat/issue-27-restart-process`.
+- [x] #27 restart process — `feat/issue-27-restart-process` (Completed).
 - #31 minimize/settings-back controls — `feat/issue-31-window-settings-controls`.
 - Version bumped to 1.2.0 on the branch; implementation PRs start as drafts.
 

@@ -59,6 +59,13 @@ export const trackKillSucceeded = (p: { port_count: number; has_framework: 0 | 1
   track("process_kill_succeeded", p);
 export const trackKillFailed = (p: { error_type: string }) => track("process_kill_failed", p);
 
+export const trackRestartRequested = () => track("process_restart_requested");
+export const trackRestartConfirmed = () => track("process_restart_confirmed");
+export const trackRestartCancelled = () => track("process_restart_cancelled");
+export const trackRestartSucceeded = (p: { port_count: number; has_framework: 0 | 1 }) =>
+  track("process_restart_succeeded", p);
+export const trackRestartFailed = (p: { error_type: string }) => track("process_restart_failed", p);
+
 // UI / UX
 export const trackSettingsOpened = () => track("settings_opened");
 export const trackSearchUsed = (p: { query_length_bucket: string }) => track("search_used", p);
