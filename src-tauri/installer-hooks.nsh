@@ -98,7 +98,13 @@ FunctionEnd
   ${EndUnless}
 
   DetailPrint "Adding PortPeek to current-user PATH..."
-  
+
+  ; ponytail: manual HKCU PATH editing. Ceiling — assumes NSIS's large-string
+  ; makensis (Tauri's bundled build); a PATH longer than NSIS_MAX_STRLEN would be
+  ; truncated on read and written back short. Boundary matching is exact-entry
+  ; (semicolon-delimited), not substring. Upgrade path if a long-PATH truncation
+  ; is ever reported: switch add/remove to the NSIS EnVar plugin.
+
   ; Read current PATH
   ReadRegStr $0 HKCU "Environment" "Path"
   
@@ -135,6 +141,9 @@ skip_path:
   ReadRegStr $1 HKCU "Software\PortPeek" "AddedCliPath"
   StrCmp $1 "1" 0 done
 
+  ; ponytail: removes every exact ";$INSTDIR\bin;" entry we own (duplicates are
+  ; semantically redundant, so dropping all of them is fine). Rebuilds PATH from
+  ; the semicolon-delimited entries, never a naive substring replace.
   ReadRegStr $0 HKCU "Environment" "Path"
   StrCpy $1 ";$0;"
   !insertmacro un_StrReplace $1 $1 ";$INSTDIR\bin;" ";"
