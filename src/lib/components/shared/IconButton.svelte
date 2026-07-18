@@ -4,6 +4,7 @@
   let {
     label,
     title = label,
+    id,
     disabled = false,
     danger = false,
     active = false,
@@ -12,6 +13,7 @@
   }: {
     label: string;
     title?: string;
+    id?: string;
     disabled?: boolean;
     danger?: boolean;
     active?: boolean;
@@ -22,6 +24,7 @@
 
 <button
   type="button"
+  {id}
   aria-label={label}
   aria-pressed={active ? true : undefined}
   {title}
