@@ -99,15 +99,21 @@ FunctionEnd
 
   DetailPrint "Adding PortPeek to current-user PATH..."
 
-  ; ponytail: manual HKCU PATH editing. Ceiling — assumes NSIS's large-string
-  ; makensis (Tauri's bundled build); a PATH longer than NSIS_MAX_STRLEN would be
-  ; truncated on read and written back short. Boundary matching is exact-entry
-  ; (semicolon-delimited), not substring. Upgrade path if a long-PATH truncation
-  ; is ever reported: switch add/remove to the NSIS EnVar plugin.
+  ; ponytail: manual HKCU PATH editing. Boundary matching is exact-entry
+  ; (semicolon-delimited), not substring. Ceiling — ReadRegStr is capped at
+  ; NSIS_MAX_STRLEN, and it cannot tell a missing key from a value that is too
+  ; long: both fail with the error flag set and return "". We therefore bail out
+  ; on any read error rather than write the truncated value back (which would
+  ; wipe a real long PATH). Cost: a user whose HKCU Path key does not yet exist
+  ; won't get an auto-add (the CLI still works via its full path). Upgrade path
+  ; for full long-PATH support: switch add/remove to the NSIS EnVar plugin.
 
-  ; Read current PATH
+  ; Read current PATH. Abort the modification if the read fails — writing back
+  ; an empty/truncated read here would clobber the user's existing PATH.
+  ClearErrors
   ReadRegStr $0 HKCU "Environment" "Path"
-  
+  IfErrors path_unreadable
+
   ; Check for an exact, semicolon-delimited PATH entry.
   StrCpy $2 ";$0;"
   Push $2
@@ -119,7 +125,8 @@ FunctionEnd
   Goto skip_path
 
 not_found:
-  ; Append $INSTDIR\bin to PATH
+  ; Append $INSTDIR\bin to PATH (the empty branch only fires for a genuinely
+  ; empty value — a failed read was already caught above).
   StrCmp $0 "" empty_path
     WriteRegExpandStr HKCU "Environment" "Path" "$0;$INSTDIR\bin"
     Goto notify
@@ -130,6 +137,10 @@ notify:
   WriteRegStr HKCU "Software\PortPeek" "AddedCliPath" "1"
   ; Broadcast environment change
   SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  Goto skip_path
+
+path_unreadable:
+  DetailPrint "Could not read the current PATH safely; skipped adding PortPeek to PATH. Add $INSTDIR\bin manually if you want the 'portpeek' command."
 
 skip_path:
 !macroend
@@ -144,7 +155,11 @@ skip_path:
   ; ponytail: removes every exact ";$INSTDIR\bin;" entry we own (duplicates are
   ; semantically redundant, so dropping all of them is fine). Rebuilds PATH from
   ; the semicolon-delimited entries, never a naive substring replace.
+  ; Abort if the read fails — writing back a truncated/empty read would wipe the
+  ; user's PATH (see the POSTINSTALL note); leave the marker so state is honest.
+  ClearErrors
   ReadRegStr $0 HKCU "Environment" "Path"
+  IfErrors path_unreadable
   StrCpy $1 ";$0;"
   !insertmacro un_StrReplace $1 $1 ";$INSTDIR\bin;" ";"
   StrCpy $0 $1 "" 1
@@ -157,6 +172,10 @@ path_empty:
   WriteRegExpandStr HKCU "Environment" "Path" $0
   DeleteRegValue HKCU "Software\PortPeek" "AddedCliPath"
   SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  Goto done
+
+path_unreadable:
+  DetailPrint "Could not read the current PATH safely; left PATH unchanged."
 
 done:
   DetailPrint "Cleaning up PortPeek files..."
