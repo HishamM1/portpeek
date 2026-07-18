@@ -91,18 +91,20 @@ impl EnrichmentCache {
             }
         }
 
-        // Phase 3: store freshly computed values and evict listeners absent
-        // from this scan (vanished processes and reused PIDs).
+        // Phase 3: evict listeners absent from this scan (vanished processes and
+        // reused PIDs), THEN store freshly computed values. Evicting first keeps
+        // the map from transiently growing to old+new entries, which could trip
+        // the MAX_ENTRIES backstop and clear the whole cache spuriously.
         {
             let mut map = self.entries.lock().expect("enrichment cache poisoned");
+            let live: HashSet<&EnrichmentKey> = keys.iter().collect();
+            map.retain(|key, _| live.contains(key));
             for (key, value) in fresh {
                 if map.len() >= MAX_ENTRIES {
                     map.clear();
                 }
                 map.insert(key, value);
             }
-            let live: HashSet<&EnrichmentKey> = keys.iter().collect();
-            map.retain(|key, _| live.contains(key));
         }
 
         for (item, value) in items.iter_mut().zip(values) {
