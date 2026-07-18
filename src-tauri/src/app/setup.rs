@@ -25,6 +25,7 @@ pub fn run() {
 
             let settings = crate::infrastructure::paths::load_settings(app.handle());
             app.manage(crate::state::app_state::AppState::new(settings));
+            app.manage(crate::infrastructure::cache::EnrichmentCache::default());
             crate::app::tray::setup(app)?;
             if !std::env::args().any(|arg| arg == "--hidden") {
                 let _ = crate::app::window::show(app.handle());
@@ -48,6 +49,7 @@ pub fn run() {
             crate::commands::settings::update_settings,
             crate::commands::window::show_popup_window,
             crate::commands::window::hide_popup_window,
+            crate::commands::window::minimize_popup_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PortPeek");

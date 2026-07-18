@@ -43,7 +43,9 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-      - run: cargo build --release --bin portpeek --manifest-path src-tauri/Cargo.toml
+      - run: |
+          cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml
+          Copy-Item src-tauri/target/release/portpeek-cli.exe src-tauri/target/release/portpeek.exe
 
       - uses: softprops/action-gh-release@v2
         with:

@@ -61,7 +61,8 @@ enrich (framework/favicon) → PortItem[] → ports store → filters → PortLi
 - `platform/windows/` — OS-specific. `ports.rs` (TCP+UDP enumeration via Win32 `GetExtendedTcp/UdpTable`), `processes.rs` (`enrich` via `sysinfo`, `is_system_process` classification, `terminate` with protections), `editors.rs` (`has_vscode` — checks `code` on PATH).
 - `infrastructure/` — `logging.rs` (tracing), `paths.rs` (settings persistence: atomic write + backup).
 - `state/app_state.rs` — `AppState { settings: Mutex<Settings> }`, managed via `app.manage(...)`.
-- **`bin/portpeek-cli.rs`** — a second `[[bin]]` (`portpeek`, lowercase — the GUI is `PortPeek`), not tied to Tauri. Depends on `domain`/`platform` being `pub mod` in `lib.rs` (only what the CLI needs; `app`/`commands`/`infrastructure`/`state` stay private). Reuses `platform::windows::{ports, processes}` directly — no `AppHandle`, so no framework/favicon detection (that needs one). `clap` (derive) for args; a hand-rolled table formatter, no table crate.
+- **`bin/portpeek-cli.rs`** — a second `[[bin]]` (`portpeek-cli`, renamed to avoid build-time case-insensitive collisions with the `PortPeek` GUI on Windows), not tied to Tauri. Depends on `domain`/`platform` being `pub mod` in `lib.rs` (only what the CLI needs). Reuses `platform::windows::{ports, processes}` directly — no `AppHandle`, so no framework/favicon detection (that needs one). `clap` (derive) for args; a hand-rolled table formatter, no table crate. Copied/renamed to `portpeek.exe` under `$INSTDIR\bin` during install.
+- **`bin/portpeek-mcp.rs`** — a third `[[bin]]` (`portpeek-mcp`), the MCP server. Same lib reuse as the CLI (`platform::windows::{ports, processes}`, `is_system_port` guard, no `AppHandle`). Hand-rolled MCP **stdio** transport (newline-delimited JSON-RPC 2.0) on `serde_json` — no MCP SDK, no async runtime. Tools: `list_ports` (summary fields only), `inspect_port` (full detail incl. paths/command), `free_port` (protected, destructive). Docs in `docs/mcp.md`.
 
 **Where things live (for new work):**
 - Port scanning / process detection → `platform/windows/` (add other OSes as `platform/<os>/`).
@@ -91,10 +92,12 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **Around the app:** landing page with an interactive demo; CI (release + winget); auto-generated icons/tray.
 - **v1.0.2:** SID-based **system-port classification by process identity** (owner account / kernel / `%SystemRoot%`, not port number); removed "minimize when it loses focus" (looping bug); settings **dropdown chevrons**.
 - **v1.0.2:** **Privacy-friendly usage analytics** — anonymous, **opt-out** (on by default), via Aptabase. Covers app lifecycle, port-scan (aggregate counts only), port/kill/settings/filter/search flows. **No PII, ports, paths, PIDs, process names, URLs, or query text.** "Share anonymous usage" toggle in Settings › Privacy. (Needs `APTABASE_KEY` set as a GitHub Actions secret for release builds to actually emit events.)
-- **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases (not yet bundled into the installer / added to PATH — tracked as a follow-up).
+- **v1.0.3:** **`portpeek` CLI companion** — `portpeek` (list), `portpeek <port>` (who owns it), `portpeek free <port>` (stop it); `--all`/`--udp`/`--json` flags. Same `is_system_port` + `terminate()` protections as the GUI. Standalone `portpeek.exe` attached to GitHub Releases.
 - **v1.1.0:** open project folders / VS Code from port details; elevated stop via a one-off UAC prompt.
 - **v1.2.0:** **CLI Companion bundling & PATH integration** — The installer bundles `portpeek.exe` under `$INSTDIR\bin` and prompts the user to add it to their current-user PATH. Registry updates are fully duplicate-preventive, and uninstallation removes only the PortPeek-created PATH entries and directories.
 - **v1.2.0:** **Restart process action** — Best-effort restart when a launch command and working directory are available. The invocation is reconstructed **server-side** (executable image path + real argument vector + cwd, via `sysinfo`) and relaunched by spawning the executable **directly** with its argument vector — never re-joined/re-split through a shell, and the client never supplies the command string (only the PID). It refuses system/protected processes and bails out before terminating if the invocation can't be reproduced (so it never kills-without-relaunching), then verifies the relaunched process started before reporting success. Integrates with the confirm-before-kill setting. Known limit: the original terminal environment is not restored.
+- **v1.2.0:** **PortPeek MCP server** (#15) — standalone `portpeek-mcp.exe` speaking MCP over stdio, so AI clients can `list_ports` / `inspect_port` / `free_port` through PortPeek's scan and protected-process guards. Listing hides paths/commands; full detail only via `inspect_port`; system ports can't be freed. See `docs/mcp.md`.
+- **v1.2.0:** **enrichment cache** (#26) — framework/favicon results for a stable listener are computed once and reused across refreshes, keyed by (PID, executable, working dir); vanished/reused-PID entries evict each scan. Cuts background CPU/I/O for long tray sessions, no visible behavior change.
 
 > Not everything above should be assumed bug-free — see status below for what's shipped vs in-flight and the known gaps.
 
@@ -132,7 +135,7 @@ On each release:
 **Known gaps / risks / stubs:**
 - **Installer is unsigned** → Windows SmartScreen "Unknown publisher". Biggest install-funnel issue.
 - **Usage telemetry** (Aptabase, opt-out) shipped in v1.0.2; `APTABASE_KEY` is configured as a GitHub Actions secret for release builds.
-- **Stub files** (placeholders, real logic lives elsewhere): `domain/ports/filters.rs`, `infrastructure/cache.rs`, `domain/detection/types.rs`, `domain/processes/*`. Don't assume they're wired.
+- **Stub files** (placeholders, real logic lives elsewhere): `domain/ports/filters.rs`, `domain/detection/types.rs`, `domain/processes/*`. Don't assume they're wired. (`infrastructure/cache.rs` is now the wired enrichment cache — see #26.)
 - `FrameworkDetectionSource::HttpProbe` exists in the enum but HTTP probing isn't implemented.
 - **winget:** first submission is merged; future published releases trigger `winget.yml` update PRs.
 

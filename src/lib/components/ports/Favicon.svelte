@@ -3,7 +3,7 @@
   import AppWindow from "@lucide/svelte/icons/app-window";
   import Database from "@lucide/svelte/icons/database";
   import type { PortItem } from "$lib/types/port";
-  import { brandSlug, isDatabase } from "$lib/utils/ports.js";
+  import { iconSources, isDatabase } from "$lib/utils/ports.js";
 
   let {
     port,
@@ -14,9 +14,7 @@
   } = $props();
   let failed = $state(new Set<string>());
   let localSource = $derived(port.cachedFaviconPath ? convertFileSrc(port.cachedFaviconPath) : null);
-  let brand = $derived(brandSlug(port));
-  let brandSource = $derived(brand ? (brand.startsWith("https://") ? brand : `https://cdn.simpleicons.org/${brand}`) : null);
-  let source = $derived([localSource, brandSource].find((candidate) => candidate && !failed.has(candidate)) ?? null);
+  let source = $derived(iconSources(port, localSource).find((candidate) => !failed.has(candidate)) ?? null);
 
   function markFailed(): void {
     if (source) failed = new Set([...failed, source]);
