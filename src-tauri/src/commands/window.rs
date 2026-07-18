@@ -9,3 +9,8 @@ pub fn show_popup_window(app: AppHandle) -> Result<(), String> {
 pub fn hide_popup_window(app: AppHandle) -> Result<(), String> {
     crate::app::window::hide(&app).map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub fn minimize_popup_window(app: AppHandle) -> Result<(), String> {
+    crate::app::window::minimize(&app).map_err(|error| error.to_string())
+}

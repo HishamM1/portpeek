@@ -19,3 +19,4 @@ export const updateSettings = (settings: Settings) =>
   invoke<Settings>("update_settings", { settings });
 export const showPopupWindow = () => invoke<void>("show_popup_window");
 export const hidePopupWindow = () => invoke<void>("hide_popup_window");
+export const minimizePopupWindow = () => invoke<void>("minimize_popup_window");
