@@ -125,6 +125,7 @@ struct Relaunch {
     program: std::path::PathBuf,
     args: Vec<std::ffi::OsString>,
     working_directory: std::path::PathBuf,
+    environment: Vec<(std::ffi::OsString, std::ffi::OsString)>,
 }
 
 /// Reconstruct a safely-reproducible invocation from data captured server-side
@@ -145,6 +146,7 @@ fn plan_relaunch(
     exe: Option<&std::path::Path>,
     argv: &[std::ffi::OsString],
     cwd: Option<&std::path::Path>,
+    environ: &[std::ffi::OsString],
 ) -> Result<Relaunch, String> {
     if argv.is_empty() {
         return Err("Failed to restart process: process command line is unavailable".into());
@@ -172,7 +174,20 @@ fn plan_relaunch(
         program,
         args: argv[1..].to_vec(),
         working_directory,
+        environment: parse_environ(environ),
     })
+}
+
+#[cfg(target_os = "windows")]
+fn parse_environ(environ: &[std::ffi::OsString]) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+    environ
+        .iter()
+        .filter_map(|entry| {
+            let entry = entry.to_string_lossy();
+            let (key, value) = entry.split_once('=')?;
+            (!key.is_empty()).then(|| (key.into(), value.into()))
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -189,7 +204,8 @@ pub fn restart_process(pid: u32) -> Result<(), String> {
                 .with_exe(UpdateKind::Always)
                 .with_user(UpdateKind::Always)
                 .with_cmd(UpdateKind::Always)
-                .with_cwd(UpdateKind::Always),
+                .with_cwd(UpdateKind::Always)
+                .with_environ(UpdateKind::Always),
         );
         let process = system
             .process(pid_sys)
@@ -210,10 +226,11 @@ pub fn restart_process(pid: u32) -> Result<(), String> {
         // Keep argv as OsStrings so argument boundaries/quoting survive verbatim
         // (no lossy String round-trip before we relaunch).
         let argv: Vec<std::ffi::OsString> = process.cmd().to_vec();
+        let environ: Vec<std::ffi::OsString> = process.environ().to_vec();
 
         // Capture a reproducible invocation BEFORE terminating anything. If it
         // can't be reproduced we bail out here, so we never kill-without-relaunch.
-        let plan = plan_relaunch(process.exe(), &argv, process.cwd())?;
+        let plan = plan_relaunch(process.exe(), &argv, process.cwd(), &environ)?;
 
         crate::platform::windows::processes::terminate(pid)
             .map_err(|error| format!("Failed to stop process: {error}"))?;
@@ -238,11 +255,20 @@ pub fn restart_process(pid: u32) -> Result<(), String> {
         let mut cmd = std::process::Command::new(&plan.program);
         cmd.args(&plan.args);
         cmd.current_dir(&plan.working_directory);
+        if !plan.environment.is_empty() {
+            cmd.env_clear();
+            cmd.envs(plan.environment.iter().cloned());
+        }
 
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
+            use std::process::Stdio;
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+            cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
         }
 
         let mut child = cmd
@@ -301,7 +327,7 @@ mod tests {
         let argv = osv(&["node", "server.js"]);
         let exe = Path::new("C:\\Program Files\\nodejs\\node.exe");
         let cwd = Path::new("C:\\Projects\\app");
-        let plan = plan_relaunch(Some(exe), &argv, Some(cwd)).expect("should reconstruct");
+        let plan = plan_relaunch(Some(exe), &argv, Some(cwd), &[]).expect("should reconstruct");
         assert_eq!(
             plan.program,
             PathBuf::from("C:\\Program Files\\nodejs\\node.exe")
@@ -327,6 +353,7 @@ mod tests {
             Some(Path::new("C:\\Program Files\\nodejs\\node.exe")),
             &argv,
             Some(Path::new("C:\\My Projects\\app")),
+            &[],
         )
         .expect("should reconstruct");
         assert_eq!(plan.args, argv[1..].to_vec());
@@ -342,13 +369,14 @@ mod tests {
         use std::path::Path;
         let argv = osv(&["svc.exe", "--flag"]);
         // Missing image path => not safely reproducible; refuse (caller bails BEFORE terminating).
-        let err = plan_relaunch(None, &argv, Some(Path::new("C:\\work"))).unwrap_err();
+        let err = plan_relaunch(None, &argv, Some(Path::new("C:\\work")), &[]).unwrap_err();
         assert!(err.contains("cannot resolve a reproducible executable path"));
         // A relative argv[0]-style path is not accepted as the executable either.
         let err = plan_relaunch(
             Some(Path::new("svc.exe")),
             &argv,
             Some(Path::new("C:\\work")),
+            &[],
         )
         .unwrap_err();
         assert!(err.contains("cannot resolve a reproducible executable path"));
@@ -360,16 +388,43 @@ mod tests {
         // No working directory => not safely reproducible; must error BEFORE any
         // terminate happens (the caller propagates this before killing).
         let argv = osv(&["node", "server.js"]);
-        let err = plan_relaunch(Some(std::path::Path::new("C:\\bin\\node.exe")), &argv, None)
-            .unwrap_err();
+        let err = plan_relaunch(
+            Some(std::path::Path::new("C:\\bin\\node.exe")),
+            &argv,
+            None,
+            &[],
+        )
+        .unwrap_err();
         assert!(err.contains("working directory is unavailable"));
     }
 
     #[cfg(target_os = "windows")]
     #[test]
     fn plan_relaunch_refuses_empty_command_line() {
-        let err = plan_relaunch(None, &[], Some(std::path::Path::new("C:\\work"))).unwrap_err();
+        let err =
+            plan_relaunch(None, &[], Some(std::path::Path::new("C:\\work")), &[]).unwrap_err();
         assert!(err.contains("command line is unavailable"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn parse_environ_splits_pairs_and_skips_special_entries() {
+        use std::ffi::OsString;
+        let environ = vec![
+            OsString::from("PATH=C:\\a;C:\\b"),
+            OsString::from("NODE_ENV=development"),
+            OsString::from("EQ=a=b=c"),
+            OsString::from("=C:=C:\\somewhere"),
+            OsString::from("NOEQUALS"),
+        ];
+        assert_eq!(
+            parse_environ(&environ),
+            vec![
+                (OsString::from("PATH"), OsString::from("C:\\a;C:\\b")),
+                (OsString::from("NODE_ENV"), OsString::from("development")),
+                (OsString::from("EQ"), OsString::from("a=b=c")),
+            ]
+        );
     }
 
     #[cfg(target_os = "windows")]
