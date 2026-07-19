@@ -11,12 +11,9 @@ pub fn handle_event(window: &Window, event: &WindowEvent) {
         return;
     }
 
-    match event {
-        WindowEvent::CloseRequested { api, .. } => {
-            api.prevent_close();
-            let _ = window.minimize();
-        }
-        _ => {}
+    if let WindowEvent::CloseRequested { api, .. } = event {
+        api.prevent_close();
+        let _ = window.minimize();
     }
 }
 
