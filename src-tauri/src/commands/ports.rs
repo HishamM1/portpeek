@@ -179,6 +179,27 @@ fn plan_relaunch(
 }
 
 #[cfg(target_os = "windows")]
+fn spawn_relaunch(plan: &Relaunch) -> std::io::Result<std::process::Child> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Stdio;
+    const DETACHED_PROCESS: u32 = 0x0000_0008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+
+    let mut cmd = std::process::Command::new(&plan.program);
+    cmd.args(&plan.args);
+    cmd.current_dir(&plan.working_directory);
+    if !plan.environment.is_empty() {
+        cmd.env_clear();
+        cmd.envs(plan.environment.iter().cloned());
+    }
+    cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    cmd.spawn()
+}
+
+#[cfg(target_os = "windows")]
 fn parse_environ(environ: &[std::ffi::OsString]) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     environ
         .iter()
@@ -252,27 +273,7 @@ pub fn restart_process(pid: u32) -> Result<(), String> {
             return Err("Failed to stop process: process did not exit within timeout".into());
         }
 
-        let mut cmd = std::process::Command::new(&plan.program);
-        cmd.args(&plan.args);
-        cmd.current_dir(&plan.working_directory);
-        if !plan.environment.is_empty() {
-            cmd.env_clear();
-            cmd.envs(plan.environment.iter().cloned());
-        }
-
-        {
-            use std::os::windows::process::CommandExt;
-            use std::process::Stdio;
-            const DETACHED_PROCESS: u32 = 0x0000_0008;
-            const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-            cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null());
-        }
-
-        let mut child = cmd
-            .spawn()
+        let mut child = spawn_relaunch(&plan)
             .map_err(|error| format!("Failed to relaunch process: {error}"))?;
 
         // ponytail: confirm the relaunch started and survived a moment, not that
@@ -425,6 +426,72 @@ mod tests {
                 (OsString::from("EQ"), OsString::from("a=b=c")),
             ]
         );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "spawns real node processes; run manually with --ignored"]
+    fn restart_relaunch_rebinds_the_port_end_to_end() {
+        use std::net::TcpListener;
+        use std::time::{Duration, Instant};
+        use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+
+        let port = TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let script = format!("require('net').createServer().listen({port}, '127.0.0.1')");
+
+        let mut original = std::process::Command::new("node")
+            .args(["-e", &script])
+            .spawn()
+            .expect("node should be on PATH");
+        let pid = original.id();
+
+        let listening = || {
+            crate::platform::windows::ports::list_tcp_listeners()
+                .map(|items| items.iter().any(|item| item.port == port))
+                .unwrap_or(false)
+        };
+
+        let deadline = Instant::now() + Duration::from_secs(8);
+        while Instant::now() < deadline && !listening() {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        assert!(listening(), "original node never bound port {port}");
+
+        let mut system = System::new();
+        let pid_sys = Pid::from_u32(pid);
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&[pid_sys]),
+            true,
+            ProcessRefreshKind::nothing()
+                .with_exe(UpdateKind::Always)
+                .with_cmd(UpdateKind::Always)
+                .with_cwd(UpdateKind::Always)
+                .with_environ(UpdateKind::Always),
+        );
+        let process = system.process(pid_sys).expect("process visible to sysinfo");
+        let argv: Vec<std::ffi::OsString> = process.cmd().to_vec();
+        let environ: Vec<std::ffi::OsString> = process.environ().to_vec();
+        let plan = plan_relaunch(process.exe(), &argv, process.cwd(), &environ)
+            .expect("invocation should be reproducible");
+
+        crate::platform::windows::processes::terminate(pid).expect("terminate original");
+        let _ = original.wait();
+
+        let mut relaunched = spawn_relaunch(&plan).expect("relaunch should spawn");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline && !listening() {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let rebound = listening();
+
+        let _ = relaunched.kill();
+        let _ = relaunched.wait();
+
+        assert!(rebound, "relaunched node did not rebind port {port}");
     }
 
     #[cfg(target_os = "windows")]
