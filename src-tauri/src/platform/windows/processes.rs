@@ -178,6 +178,7 @@ pub(crate) fn is_system_process(
         || matches!(sid, Some("S-1-5-18" | "S-1-5-19" | "S-1-5-20"))
         || exe.is_some_and(is_under_system_root)
         || protected_name(name)
+        || (sid.is_none() && exe.is_none())
 }
 
 fn is_under_system_root(exe: &Path) -> bool {
@@ -256,10 +257,21 @@ mod tests {
     }
 
     #[test]
-    fn classifies_known_system_service_by_name_when_unreadable() {
+    fn classifies_unreadable_process_as_system() {
         assert!(is_system_process(None, None, "spoolsv.exe", 24668));
-        assert!(is_system_process(None, None, "SearchIndexer.exe", 9000));
-        assert!(!is_system_process(None, None, "jhi_service.exe", 3544));
+        assert!(is_system_process(None, None, "jhi_service.exe", 3544));
+        assert!(!is_system_process(
+            Some("S-1-5-21-1-2-3-1001"),
+            None,
+            "node.exe",
+            5173
+        ));
+        assert!(!is_system_process(
+            None,
+            Some(Path::new("C:\\Projects\\shop\\node.exe")),
+            "node.exe",
+            5173
+        ));
     }
 
     #[test]
