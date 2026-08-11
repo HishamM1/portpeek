@@ -27,15 +27,13 @@ PortPeek: a **Windows tray utility** that shows what's listening on local ports 
 - **Counts:** always derive from `scopedPorts`/`visiblePorts`, never a raw store, or the header and list disagree.
 - **Version bumps:** update `package.json` + `src-tauri/Cargo.toml` + `src-tauri/tauri.conf.json` together, then tag `vX.Y.Z`.
 - **Rust changes** need `pnpm tauri dev` rebuild, not a hot reload.
-- **Telemetry key:** set `APTABASE_KEY` in your shell before `pnpm tauri dev`/`build` to send events; without it the Aptabase plugin isn't initialized and tracking silently no-ops. The key ships in the binary (not secret) but is never committed — CI injects it.
-- **Analytics:** all events go through the wrappers (`src/lib/analytics.ts`, `src-tauri/src/app/analytics.rs`) — never call `trackEvent`/`track_event` directly. Props are strings/numbers only, no PII.
 - **Stubs are not wired:** `domain/ports/filters.rs`, `infrastructure/cache.rs`, `domain/detection/types.rs`, `domain/processes/*` are TODO placeholders.
 
 ## Settled — don't re-litigate
-Svelte+Vite (not SvelteKit) · Tauri v2 · teal "Berth" design + Geist fonts (no purple/AI look) · borderless taskbar window, opens bottom-right, draggable header · **minimize-on-blur removed on purpose (looping bug) — do not re-add** · system ports classified by process identity (SID/kernel/`%SystemRoot%`), not port number · auto-update via tauri-plugin-updater · telemetry = Aptabase, opt-out/on-by-default, anonymous events only (no PII/ports/paths), gated live on `settings.shareUsage` via `src/lib/analytics.ts`.
+Svelte+Vite (not SvelteKit) · Tauri v2 · teal "Berth" design + Geist fonts (no purple/AI look) · borderless taskbar window, opens bottom-right, draggable header · **minimize-on-blur removed on purpose (looping bug) — do not re-add** · system ports classified by process identity (SID/kernel/`%SystemRoot%`), not port number · auto-update via tauri-plugin-updater · no usage analytics.
 
 ## Working style here
-Keep changes small and reviewable. Prefer simple/native/existing over new heavy deps (the owner values this — see the "ponytail" preference). Match existing patterns and the Berth design. Verify (`pnpm check` + `cargo test`) before a PR. Ask before anything needing the owner's secrets/accounts (signing cert, tokens, telemetry key) or irreversible actions.
+Keep changes small and reviewable. Prefer simple/native/existing over new heavy deps (the owner values this — see the "ponytail" preference). Match existing patterns and the Berth design. Verify (`pnpm check` + `cargo test`) before a PR. Ask before anything needing the owner's secrets/accounts (signing cert, tokens) or irreversible actions.
 
 ## Fixmind
 Per the global rule, after fixing a meaningful bug (logic/API/state), call the fixmind `save_lesson` MCP tool. Skip it for pure styling/renames/formatting.

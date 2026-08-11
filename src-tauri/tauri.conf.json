@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PortPeek",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "identifier": "com.hishammedhat.portpeek",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build && cargo build --release --bin portpeek-cli --manifest-path src-tauri/Cargo.toml && copy /Y src-tauri\\target\\release\\portpeek-cli.exe src-tauri\\resources\\portpeek-cli.exe",
     "frontendDist": "../build"
   },
   "app": {
@@ -36,6 +36,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
+    "resources": {
+      "resources": ""
+    },
     "targets": ["nsis"],
     "windows": {
       "allowDowngrades": false,
@@ -45,7 +48,8 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "installer-hooks.nsh"
       }
     },
     "icon": [

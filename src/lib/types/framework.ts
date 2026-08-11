@@ -5,6 +5,7 @@ export type FrameworkDetectionSource =
   | "package_json"
   | "config_file"
   | "http_probe"
+  | "process_name"
   | "unknown";
 
 export interface FrameworkDetection {

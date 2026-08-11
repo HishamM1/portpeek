@@ -9,7 +9,8 @@ pub struct Settings {
     pub launch_at_startup: bool,
     pub confirm_before_kill: bool,
     pub default_open_protocol: OpenProtocol,
-    pub share_usage: bool,
+    #[serde(default)]
+    pub pinned_ports: Vec<u16>,
 }
 
 impl Default for Settings {
@@ -21,7 +22,7 @@ impl Default for Settings {
             launch_at_startup: false,
             confirm_before_kill: true,
             default_open_protocol: OpenProtocol::Http,
-            share_usage: true,
+            pinned_ports: Vec::new(),
         }
     }
 }
@@ -30,6 +31,9 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         if !(500..=60_000).contains(&self.refresh_interval_ms) {
             return Err("refresh interval must be between 500 and 60000 milliseconds".into());
+        }
+        if self.pinned_ports.len() > 100 || self.pinned_ports.contains(&0) {
+            return Err("pinned ports must contain at most 100 valid port numbers".into());
         }
         Ok(())
     }
@@ -68,6 +72,9 @@ mod tests {
         let mut settings = Settings::default();
         assert!(settings.validate().is_ok());
         settings.refresh_interval_ms = 100;
+        assert!(settings.validate().is_err());
+        settings.refresh_interval_ms = 2_000;
+        settings.pinned_ports = vec![0];
         assert!(settings.validate().is_err());
     }
 }

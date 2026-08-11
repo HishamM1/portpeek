@@ -12,10 +12,9 @@ export const copyLocalhostUrl = (port: number, protocol: OpenProtocol) =>
 export const copyPort = (port: number) => invoke<void>("copy_port", { port });
 export const copyText = (text: string) => invoke<void>("copy_text", { text });
 export const openPath = (path: string) => invoke<void>("open_path", { path });
-export const openInEditor = (path: string) => invoke<void>("open_in_editor", { path });
-export const detectVsCode = () => invoke<boolean>("detect_vscode");
 export const getSettings = () => invoke<Settings>("get_settings");
 export const updateSettings = (settings: Settings) =>
   invoke<Settings>("update_settings", { settings });
 export const showPopupWindow = () => invoke<void>("show_popup_window");
 export const hidePopupWindow = () => invoke<void>("hide_popup_window");
+export const minimizePopupWindow = () => invoke<void>("minimize_popup_window");

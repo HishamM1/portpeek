@@ -11,7 +11,7 @@
   import { groupPorts } from "$lib/utils/ports.js";
 
   let numericQuery = $derived(/^\d{1,5}$/.test($query.trim()));
-  let groups = $derived(groupPorts($visiblePorts));
+  let groups = $derived(groupPorts($visiblePorts, $settings.pinnedPorts));
 
   onMount(() => {
     void refreshPorts("initial_load");

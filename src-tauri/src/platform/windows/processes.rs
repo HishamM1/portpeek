@@ -47,7 +47,7 @@ pub fn enrich(items: &mut [PortItem]) {
         item.display_name = display_name(&process_name, process.cwd());
         item.process_name = Some(process_name.clone());
         item.memory_mb = Some(process.memory() as f64 / 1_048_576.0);
-        item.uptime_seconds = Some(process.run_time());
+        item.uptime_seconds = uptime_from(process.start_time(), process.run_time());
         item.command = (!process.cmd().is_empty()).then(|| {
             process
                 .cmd()
@@ -165,21 +165,26 @@ fn display_name(process_name: &str, cwd: Option<&Path>) -> Option<String> {
     Some(process_name.trim_end_matches(".exe").to_string())
 }
 
-// A listener is a "system" port when its owning process is a Windows OS process:
-// running under a built-in system account, the kernel (pid <= 4), or an executable
-// inside the Windows directory. Owner account is the authoritative signal.
-fn is_system_process(sid: Option<&str>, exe: Option<&Path>, name: &str, pid: u32) -> bool {
+pub(crate) fn is_system_process(
+    sid: Option<&str>,
+    exe: Option<&Path>,
+    name: &str,
+    pid: u32,
+) -> bool {
     pid <= 4
         || matches!(sid, Some("S-1-5-18" | "S-1-5-19" | "S-1-5-20"))
         || exe.is_some_and(is_under_system_root)
         || protected_name(name)
+        || (sid.is_none() && exe.is_none())
 }
 
 fn is_under_system_root(exe: &Path) -> bool {
     let root = std::env::var("SystemRoot")
         .unwrap_or_else(|_| "C:\\Windows".to_string())
         .to_ascii_lowercase();
-    exe.to_string_lossy().to_ascii_lowercase().starts_with(&root)
+    exe.to_string_lossy()
+        .to_ascii_lowercase()
+        .starts_with(&root)
 }
 
 fn protected_name(name: &str) -> bool {
@@ -194,7 +199,13 @@ fn protected_name(name: &str) -> bool {
             | "lsass.exe"
             | "winlogon.exe"
             | "svchost.exe"
+            | "spoolsv.exe"
+            | "searchindexer.exe"
     )
+}
+
+fn uptime_from(start_time: u64, run_time: u64) -> Option<u64> {
+    (start_time != 0).then_some(run_time)
 }
 
 fn path_string(path: &Path) -> String {
@@ -207,23 +218,58 @@ mod tests {
 
     #[test]
     fn classifies_system_by_account_and_location() {
-        // Built-in system accounts (SYSTEM / LOCAL SERVICE / NETWORK SERVICE)
-        assert!(is_system_process(Some("S-1-5-18"), None, "svchost.exe", 900));
-        assert!(is_system_process(Some("S-1-5-19"), None, "spoolsv.exe", 900));
-        // Kernel
+        assert!(is_system_process(
+            Some("S-1-5-18"),
+            None,
+            "svchost.exe",
+            900
+        ));
+        assert!(is_system_process(
+            Some("S-1-5-19"),
+            None,
+            "spoolsv.exe",
+            900
+        ));
         assert!(is_system_process(None, None, "System", 4));
-        // Executable inside the Windows directory, even without an SID
         let sys_exe = format!(
             "{}\\System32\\spoolsv.exe",
             std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
         );
-        assert!(is_system_process(None, Some(Path::new(&sys_exe)), "spoolsv.exe", 900));
-        // A normal dev server owned by the user, running from a project folder
+        assert!(is_system_process(
+            None,
+            Some(Path::new(&sys_exe)),
+            "spoolsv.exe",
+            900
+        ));
         assert!(!is_system_process(
             Some("S-1-5-21-1-2-3-1001"),
             Some(Path::new("C:\\Projects\\shop\\node.exe")),
             "node.exe",
             5173,
         ));
+    }
+
+    #[test]
+    fn classifies_unreadable_process_as_system() {
+        assert!(is_system_process(None, None, "spoolsv.exe", 24668));
+        assert!(is_system_process(None, None, "jhi_service.exe", 3544));
+        assert!(!is_system_process(
+            Some("S-1-5-21-1-2-3-1001"),
+            None,
+            "node.exe",
+            5173
+        ));
+        assert!(!is_system_process(
+            None,
+            Some(Path::new("C:\\Projects\\shop\\node.exe")),
+            "node.exe",
+            5173
+        ));
+    }
+
+    #[test]
+    fn uptime_is_none_when_start_time_unreadable() {
+        assert_eq!(uptime_from(0, 1_784_372_876), None);
+        assert_eq!(uptime_from(1_700_000_000, 3_600), Some(3_600));
     }
 }

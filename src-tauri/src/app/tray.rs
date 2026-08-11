@@ -24,9 +24,6 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id().as_ref() {
             OPEN_MENU_ID => {
                 let result = crate::app::window::show(app);
-                if result.is_ok() {
-                    crate::app::analytics::track_tray_open(app, "menu");
-                }
                 log_error(result);
             }
             QUIT_MENU_ID => app.exit(0),
@@ -40,9 +37,6 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
             } = event
             {
                 let result = crate::app::window::toggle(tray.app_handle());
-                if let Ok(true) = result {
-                    crate::app::analytics::track_tray_open(tray.app_handle(), "left_click");
-                }
                 log_error(result.map(|_| ()));
             }
         })

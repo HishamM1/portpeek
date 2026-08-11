@@ -11,12 +11,9 @@ pub fn handle_event(window: &Window, event: &WindowEvent) {
         return;
     }
 
-    match event {
-        WindowEvent::CloseRequested { api, .. } => {
-            api.prevent_close();
-            let _ = window.minimize();
-        }
-        _ => {}
+    if let WindowEvent::CloseRequested { api, .. } = event {
+        api.prevent_close();
+        let _ = window.minimize();
     }
 }
 
@@ -30,6 +27,10 @@ pub fn show(app: &AppHandle) -> tauri::Result<()> {
 
 pub fn hide(app: &AppHandle) -> tauri::Result<()> {
     main_window(app)?.hide()
+}
+
+pub fn minimize(app: &AppHandle) -> tauri::Result<()> {
+    main_window(app)?.minimize()
 }
 
 pub fn toggle(app: &AppHandle) -> tauri::Result<bool> {

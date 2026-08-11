@@ -46,6 +46,7 @@ const frameworkBrands = new Map([
   ["vite", "vite"],
   ["react", "react"],
   ["vue", "vuedotjs"],
+  ["node.js", "nodedotjs"],
   ["node", "nodedotjs"],
   ["django", "django"],
   ["fastapi", "fastapi"],
@@ -54,10 +55,93 @@ const frameworkBrands = new Map([
   ["php", "php"],
   ["go", "go"],
   ["rust", "rust"],
+  [".net", "dotnet"],
+  ["asp.net", "dotnet"],
+  ["java", "openjdk"],
+  ["spring boot", "spring"],
+  ["apache tomcat", "apachetomcat"],
+  ["quarkus", "quarkus"],
+  ["micronaut", "micronaut"],
+  ["flask", "flask"],
+  ["express", "express"],
+  ["nestjs", "nestjs"],
+  ["iis express", "iis"],
+  ["openssh", "openssh"],
+  ["nginx", "nginx"],
+  ["caddy", "caddy"],
+  ["apache http server", "apache"],
+  ["uvicorn", "uvicorn"],
+  ["gunicorn", "gunicorn"],
+  ["streamlit", "streamlit"],
+  ["jupyter", "jupyter"],
+  ["astro", "astro"],
+  ["deno", "deno"],
+  ["bun", "bun"],
+  ["puma", "puma"],
+  ["phoenix", "phoenixframework"],
+  ["elixir", "elixir"],
+  ["antigravity", "antigravity"],
+  ["tableplus", "tableplus"],
+  ["sql server", "microsoftsqlserver"],
+  ["rabbitmq", "rabbitmq"],
+  ["apache kafka", "apachekafka"],
+  ["minio", "minio"],
+  ["localstack", "localstack"],
+  ["mailpit", "mailpit"],
+  ["mailhog", "mailhog"],
+  ["memcached", "memcached"],
+  ["hashicorp vault", "vault"],
+  ["hashicorp consul", "consul"],
+  ["prometheus", "prometheus"],
+  ["grafana", "grafana"],
+  ["traefik", "traefik"],
+  ["mysql", "mysql"],
+  ["mariadb", "mariadb"],
+  ["mongodb", "mongodb"],
+  ["postgresql", "postgresql"],
+  ["redis", "redis"],
+  ["cockroachdb", "cockroachlabs"],
+  ["influxdb", "influxdb"],
+  ["elasticsearch", "elasticsearch"],
+  ["neo4j", "neo4j"],
+  ["cassandra", "apachecassandra"],
+  ["clickhouse", "clickhouse"],
+  ["jetty", "jetty"],
+  ["wildfly", "wildfly"],
+  ["ktor", "ktor"],
+  ["play framework", "playframework"],
+  ["grails", "grails"],
+  ["hypercorn", "hypercorn"],
+  ["gradio", "gradio"],
+  ["fastify", "fastify"],
+  ["hapi", "hapi"],
+  ["koa", "koajs"],
+  ["adonisjs", "adonisjs"],
+  ["remix", "remix"],
+  ["symfony", "symfony"],
+  ["codeigniter", "codeigniter"],
+  ["wordpress", "wordpress"],
+  ["sinatra", "sinatra"],
+  ["erlang", "erlang"],
+  ["axum", "axum"],
+  ["actix web", "actix"],
+  ["rocket", "rocket"],
+  ["warp", "warp"],
+  ["gin", "gin"],
+  ["fiber", "gofiber"],
+  ["echo", "echo"],
+  ["dart", "dart"],
+  ["flutter", "flutter"],
+  ["grpc", "grpc"],
+  ["jaeger", "jaeger"],
+  ["opentelemetry collector", "opentelemetry"],
+  ["envoy", "envoy"],
+  ["python", "python"],
+  ["ruby", "ruby"],
 ]);
 
-/** @param {PortItem[]} ports */
-export function groupPorts(ports) {
+/** @param {PortItem[]} ports @param {number[]} [pinnedPorts] */
+export function groupPorts(ports, pinnedPorts = []) {
   /** @type {Map<string, PortItem[]>} */
   const groups = new Map();
 
@@ -68,7 +152,31 @@ export function groupPorts(ports) {
     else groups.set(key, [port]);
   }
 
-  return [...groups.values()];
+  const pinned = new Set(pinnedPorts);
+  return [...groups.values()].sort(
+    (a, b) => Number(b.some((item) => pinned.has(item.port))) - Number(a.some((item) => pinned.has(item.port))),
+  );
+}
+
+/** @param {PortItem[]} ports @param {boolean} showSystemPorts @param {boolean} showUdp @param {string} query @param {number[]} [pinnedPorts] */
+export function filterPorts(ports, showSystemPorts, showUdp, query, pinnedPorts = []) {
+  const needle = query.trim().toLowerCase();
+  return ports.filter((port) => {
+    if (!needle) {
+      if (pinnedPorts.includes(port.port)) return true;
+      if (!showSystemPorts && port.isSystemPort) return false;
+      if (!showUdp && port.protocol === "udp") return false;
+      return true;
+    }
+    return [
+      port.port.toString(),
+      port.address,
+      port.processName,
+      port.displayName,
+      port.framework?.name,
+      port.pid?.toString(),
+    ].some((value) => value?.toLowerCase().includes(needle));
+  });
 }
 
 /** @param {PortItem} port */
@@ -84,23 +192,27 @@ export function brandSlug(port) {
   return appBrands.find(([terms]) => terms.some((term) => text.includes(term)))?.[1] ?? null;
 }
 
-/**
- * A bound socket is "exposed" when it listens on a non-loopback address
- * (0.0.0.0, ::, or a concrete LAN IP) — reachable from other machines.
- * @param {string} address
- */
+/** @param {string | null} brand @returns {string | null} */
+export function brandIconUrl(brand) {
+  if (!brand) return null;
+  return brand.startsWith("https://") ? brand : `https://cdn.simpleicons.org/${brand}`;
+}
+
+/** @param {PortItem} port @param {string | null} localSource @returns {string[]} */
+export function iconSources(port, localSource) {
+  const brandSource = brandIconUrl(brandSlug(port));
+  if (brandSource) return [brandSource];
+  return localSource ? [localSource] : [];
+}
+
+/** @param {string} address */
 export function isExposed(address) {
   if (!address) return false;
   const a = address.toLowerCase();
   return !(a === "127.0.0.1" || a.startsWith("127.") || a === "::1");
 }
 
-/**
- * Best-effort provenance from the relay process — not true container mapping.
- * Docker Desktop and WSL forward ports through host-side relay processes.
- * @param {PortItem} port
- * @returns {"docker" | "wsl" | null}
- */
+/** @param {PortItem} port @returns {"docker" | "wsl" | null} */
 export function portSource(port) {
   const text = [port.processName, port.executablePath, port.command]
     .filter(Boolean)
