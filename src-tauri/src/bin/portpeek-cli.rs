@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use portpeek_lib::domain::ports::types::{PortItem, PortProtocol};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "portpeek", version, about = "See what's listening on your local ports.")]
@@ -21,6 +22,12 @@ struct Cli {
     /// Print machine-readable JSON instead of a table
     #[arg(long, global = true)]
     json: bool,
+
+    #[arg(long, hide = true)]
+    install_path: Option<PathBuf>,
+
+    #[arg(long, hide = true)]
+    remove_path: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -35,18 +42,49 @@ enum Command {
 fn main() {
     let cli = Cli::parse();
 
-    let result = match cli.command {
-        Some(Command::Free { port }) => free(port, cli.json),
-        None => match cli.port {
-            Some(port) => show(port, cli.json),
-            None => list(cli.all, cli.udp, cli.json),
-        },
+    let result = if let Some(path) = cli.install_path {
+        update_user_path(&path, true)
+    } else if let Some(path) = cli.remove_path {
+        update_user_path(&path, false)
+    } else {
+        match cli.command {
+            Some(Command::Free { port }) => free(port, cli.json),
+            None => match cli.port {
+                Some(port) => show(port, cli.json),
+                None => list(cli.all, cli.udp, cli.json),
+            },
+        }
     };
 
     if let Err(message) = result {
         eprintln!("error: {message}");
         std::process::exit(1);
     }
+}
+
+#[cfg(target_os = "windows")]
+fn update_user_path(path: &std::path::Path, install: bool) -> Result<(), String> {
+    let script = if install {
+        r#"$entry=$env:PORTPEEK_CLI_PATH; $path=[Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $path) {$path=''}; $parts=@($path.Split([char]';',[StringSplitOptions]::None)); if ($parts -notcontains $entry) { $new=if ([string]::IsNullOrEmpty($path)) {$entry} elseif ($path.EndsWith(';')) {"$path$entry;"} else {"$path;$entry"}; [Environment]::SetEnvironmentVariable('Path',$new,'User') }"#
+    } else {
+        r#"$entry=$env:PORTPEEK_CLI_PATH; $path=[Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $path) {$path=''}; $parts=@($path.Split([char]';',[StringSplitOptions]::None) | Where-Object { $_ -ne $entry }); [Environment]::SetEnvironmentVariable('Path',($parts -join ';'),'User')"#
+    };
+    let status = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .env("PORTPEEK_CLI_PATH", path)
+        .status()
+        .map_err(|error| format!("failed to update PATH: {error}"))?;
+    status.success().then_some(()).ok_or_else(|| {
+        format!(
+            "failed to update PATH (exit code {})",
+            status.code().unwrap_or(-1)
+        )
+    })
+}
+
+#[cfg(not(target_os = "windows"))]
+fn update_user_path(_path: &std::path::Path, _install: bool) -> Result<(), String> {
+    Err("PATH integration is supported on Windows only".into())
 }
 
 fn list(all: bool, udp: bool, json: bool) -> Result<(), String> {
@@ -283,6 +321,8 @@ mod tests {
         assert!(!cli.all);
         assert!(!cli.udp);
         assert!(!cli.json);
+        assert!(cli.install_path.is_none());
+        assert!(cli.remove_path.is_none());
     }
 
     #[test]
@@ -304,6 +344,18 @@ mod tests {
         assert!(cli.all);
         assert!(cli.udp);
         assert!(cli.json);
+    }
+
+    #[test]
+    fn parses_hidden_path_helpers() {
+        let install = Cli::parse_from(["portpeek", "--install-path", r"C:\PortPeek\bin"]);
+        assert_eq!(
+            install.install_path,
+            Some(PathBuf::from(r"C:\PortPeek\bin"))
+        );
+
+        let remove = Cli::parse_from(["portpeek", "--remove-path", r"C:\PortPeek\bin"]);
+        assert_eq!(remove.remove_path, Some(PathBuf::from(r"C:\PortPeek\bin")));
     }
 
     #[test]
