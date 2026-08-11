@@ -47,12 +47,6 @@ pub fn detect(
                 .filter(|d| runtime_matches(pname, cmd, &d.name))
         })
         .or_else(|| {
-            // Scan every config candidate (in priority order) and keep the first
-            // one whose framework matches the listener's runtime. Selecting the
-            // whole list rather than just the first match means a polyglot repo
-            // (e.g. a JS `vite.config` next to a Spring Boot `pom.xml`) still
-            // resolves a `java.exe` listener to Spring Boot instead of skipping
-            // it because an unrelated JS config happened to match first.
             root.map(config_candidates).and_then(|candidates| {
                 candidates
                     .into_iter()
@@ -232,15 +226,8 @@ fn detect_config(root: &Path) -> Option<FrameworkDetection> {
     config_candidates(root).into_iter().next()
 }
 
-/// All config-based framework detections for `root`, in priority order:
-/// specific frameworks first, generic runtime labels (Java/PHP/Ruby/…) last.
-/// `detect()` picks the first entry that matches the listener's runtime, so a
-/// generic label never wins over a specific framework that is actually present.
 fn config_candidates(root: &Path) -> Vec<FrameworkDetection> {
     let mut out: Vec<FrameworkDetection> = Vec::new();
-    // Push a config-based detection. We accumulate every candidate (rather than
-    // returning the first) so `detect()` can skip candidates that don't match
-    // the listener's runtime and still reach a specific framework further down.
     macro_rules! push {
         ($name:expr, $confidence:expr) => {
             out.push(found(
@@ -1564,12 +1551,10 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
 
-        // Spring Boot Maven project -> Spring Boot, not the generic Java marker.
         fs::write(root.join("pom.xml"), "spring-boot-starter-web").unwrap();
         assert_eq!(detect_config(&root).unwrap().name, "Spring Boot");
         fs::remove_file(root.join("pom.xml")).unwrap();
 
-        // Symfony project -> Symfony, not the generic PHP marker.
         fs::write(
             root.join("composer.json"),
             r#"{"require":{"symfony/framework-bundle":"*"}}"#,
@@ -1578,7 +1563,6 @@ mod tests {
         assert_eq!(detect_config(&root).unwrap().name, "Symfony");
         fs::remove_file(root.join("composer.json")).unwrap();
 
-        // Rails project -> Rails, not the generic Ruby marker.
         fs::write(root.join("Gemfile"), "gem \"rails\", \"~> 7.1\"").unwrap();
         assert_eq!(detect_config(&root).unwrap().name, "Rails");
         fs::remove_file(root.join("Gemfile")).unwrap();
@@ -1593,7 +1577,6 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
 
-        // Bare Maven project with no Spring/Quarkus/etc markers -> Java fallback.
         fs::write(
             root.join("pom.xml"),
             "<project><groupId>demo</groupId></project>",
@@ -1603,7 +1586,6 @@ mod tests {
         assert_eq!(java.name, "Java");
         fs::remove_file(root.join("pom.xml")).unwrap();
 
-        // Bare Composer project with no framework dependency -> PHP fallback.
         fs::write(
             root.join("composer.json"),
             r#"{"require":{"guzzlehttp/guzzle":"*"}}"#,
@@ -1612,7 +1594,6 @@ mod tests {
         assert_eq!(detect_config(&root).unwrap().name, "PHP");
         fs::remove_file(root.join("composer.json")).unwrap();
 
-        // Bare Gemfile with no rails/sinatra/puma -> Ruby fallback.
         fs::write(root.join("Gemfile"), "gem \"rake\"").unwrap();
         assert_eq!(detect_config(&root).unwrap().name, "Ruby");
 
@@ -1621,9 +1602,6 @@ mod tests {
 
     #[test]
     fn detect_resolves_runtime_specific_framework_in_polyglot_repo() {
-        // A monorepo root holding both a JS config and a Spring Boot pom.xml.
-        // A java.exe listener must resolve to Spring Boot even though the JS
-        // config candidate is scanned first — it just doesn't match the runtime.
         let root = std::env::temp_dir().join(format!(
             "portpeek-framework-polyglot-{}",
             std::process::id()
@@ -1636,7 +1614,6 @@ mod tests {
         let detection = detect(Some("java.exe"), Some("java -jar app.jar"), Some(&root));
         assert_eq!(detection.unwrap().name, "Spring Boot");
 
-        // The same repo with a node listener still resolves to the JS framework.
         let node = detect(Some("node.exe"), Some("node server.js"), Some(&root));
         assert_eq!(node.unwrap().name, "Vite");
 
@@ -1645,8 +1622,6 @@ mod tests {
 
     #[test]
     fn command_does_not_false_positive_on_next_substring() {
-        // Names/paths that merely contain "next" (nextcloud, nextdoor) are not
-        // Next.js — they should fall through to the generic Node.js runtime.
         for cmd in [
             "node nextcloud/server.js",
             "node C:\\nextcloud\\server.js",
@@ -1659,7 +1634,6 @@ mod tests {
             );
         }
 
-        // Genuine Next.js invocations are still detected.
         for cmd in [
             "node node_modules/.bin/next dev",
             "npx next start",

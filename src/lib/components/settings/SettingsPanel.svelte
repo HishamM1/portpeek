@@ -4,15 +4,12 @@
   import { relaunch } from "@tauri-apps/plugin-process";
   import { check, type Update } from "@tauri-apps/plugin-updater";
   import { onMount } from "svelte";
-  import { trackSettingChanged, trackUpdateChecked, trackUpdateInstalled } from "$lib/analytics";
   import { settings, settingsError, settingsLoading, saveSettings } from "$lib/stores/settings";
   import type { OpenProtocol, Settings, Theme } from "$lib/types/settings";
 
   let { onclose }: { onclose?: () => void } = $props();
 
   function onKeydown(event: KeyboardEvent): void {
-    // Escape backs out to the port list, mirroring the Back button. Skip when a
-    // native <select> is focused so Escape can cancel its open dropdown instead.
     if (event.key !== "Escape" || !onclose) return;
     if (event.target instanceof HTMLSelectElement) return;
     event.preventDefault();
@@ -21,9 +18,6 @@
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]): void {
     void saveSettings({ ...$settings, [key]: value });
-    if (key !== "shareUsage") {
-      trackSettingChanged({ setting_key: key, value: typeof value === "boolean" ? (value ? 1 : 0) : value });
-    }
   }
 
   function value(event: Event): string {
@@ -55,14 +49,12 @@
     try {
       version = await getVersion();
     } catch {
-      /* not running in the desktop app */
     }
   });
 
   async function checkForUpdate(): Promise<void> {
     updateState = "checking";
     updateError = "";
-    trackUpdateChecked();
     try {
       const found = await check();
       if (found) {
@@ -82,7 +74,6 @@
     updateState = "installing";
     try {
       await pending.downloadAndInstall();
-      await trackUpdateInstalled();
       await relaunch();
     } catch (error) {
       updateError = String(error);
@@ -233,18 +224,6 @@
     </div>
   </div>
 
-  <h2 class="mt-5 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Privacy</h2>
-  <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)]">
-    <div class="flex items-center justify-between gap-4 px-3.5 py-3">
-      <div class="min-w-0">
-        <p class="text-[13px] font-semibold">Share anonymous usage</p>
-        <p class="mt-0.5 text-[11px] text-[var(--text-secondary)]">Anonymous events only — never ports, paths, or process names</p>
-      </div>
-      {@render toggle($settings.shareUsage, "Share anonymous usage", () =>
-        update("shareUsage", !$settings.shareUsage),
-      )}
-    </div>
-  </div>
 
   <h2 class="mt-5 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">About</h2>
   <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)]">

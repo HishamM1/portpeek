@@ -22,17 +22,12 @@ path = "src/main.rs"
 name = "portpeek-cli"
 path = "src/bin/portpeek-cli.rs"
 
-[[bin]]
-name = "portpeek-mcp"
-path = "src/bin/portpeek-mcp.rs"
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-opener = "2"
-tauri-plugin-aptabase = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-clipboard-manager = "2"

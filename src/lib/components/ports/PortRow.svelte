@@ -3,14 +3,15 @@
   import Container from "@lucide/svelte/icons/container";
   import Globe from "@lucide/svelte/icons/globe";
   import MemoryStick from "@lucide/svelte/icons/memory-stick";
+  import Pin from "@lucide/svelte/icons/pin";
   import Terminal from "@lucide/svelte/icons/terminal";
   import { slide } from "svelte/transition";
   import Favicon from "$lib/components/ports/Favicon.svelte";
   import FrameworkBadge from "$lib/components/ports/FrameworkBadge.svelte";
   import PortBadge from "$lib/components/ports/PortBadge.svelte";
   import PortDetails from "$lib/components/ports/PortDetails.svelte";
+  import { settings } from "$lib/stores/settings";
   import type { PortItem } from "$lib/types/port";
-  import { trackPortDetailsOpened } from "$lib/analytics";
   import { formatMemory } from "$lib/utils/format";
   import { isExposed, portSource } from "$lib/utils/ports.js";
 
@@ -20,16 +21,13 @@
 
   function toggleDetails(): void {
     expanded = !expanded;
-    if (expanded)
-      trackPortDetailsOpened({
-        has_framework: port.framework ? 1 : 0,
-        has_favicon: port.cachedFaviconPath || port.faviconUrl ? 1 : 0,
-      });
   }
   let listeners = $derived([...new Map(ports.map((item) => [item.port, item])).values()]);
   let label = $derived(port.displayName ?? port.processName ?? "Unknown process");
   let exposed = $derived(listeners.some((listener) => isExposed(listener.address)));
   let source = $derived(portSource(port));
+  let pinned = $derived(listeners.some((listener) => $settings.pinnedPorts.includes(listener.port)));
+  let pinnedLabel = $derived(listeners.filter((listener) => $settings.pinnedPorts.includes(listener.port)).map((listener) => `:${listener.port}`).join(", "));
 </script>
 
 <li class={`border-b border-[var(--border-subtle)] last:border-b-0 ${expanded ? "bg-[var(--surface-muted)]" : ""}`}>
@@ -37,7 +35,7 @@
     type="button"
     class={`relative flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors duration-150 hover:bg-[var(--surface-muted)] ${expanded ? "before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-r before:bg-[var(--primary)]" : ""}`}
     aria-expanded={expanded}
-    aria-label={`${expanded ? "Collapse" : "Expand"} ${label} process details`}
+    aria-label={`${pinned ? "Pinned. " : ""}${expanded ? "Collapse" : "Expand"} ${label} process details`}
     onclick={toggleDetails}
   >
     <Favicon {port} {label} />
@@ -80,6 +78,14 @@
         {formatMemory(port.memoryMb)}
       </p>
     </div>
+    {#if pinned}
+      <span
+        class="grid size-6 shrink-0 place-items-center rounded-md bg-[var(--primary-soft)] text-[var(--primary)]"
+        title={`Pinned ${pinnedLabel}`}
+      >
+        <Pin size={13} strokeWidth={1.8} fill="currentColor" aria-hidden="true" />
+      </span>
+    {/if}
     <ChevronDown
       size={16}
       strokeWidth={1.8}

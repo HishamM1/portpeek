@@ -8,5 +8,5 @@ export interface Settings {
   launchAtStartup: boolean;
   confirmBeforeKill: boolean;
   defaultOpenProtocol: OpenProtocol;
-  shareUsage: boolean;
+  pinnedPorts: number[];
 }

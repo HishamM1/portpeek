@@ -9,5 +9,5 @@ export const DEFAULT_SETTINGS: Settings = {
   launchAtStartup: false,
   confirmBeforeKill: true,
   defaultOpenProtocol: "http",
-  shareUsage: true,
+  pinnedPorts: [],
 };

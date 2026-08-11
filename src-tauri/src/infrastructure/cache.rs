@@ -11,12 +11,6 @@ use crate::domain::{detection::framework::FrameworkDetection, ports::types::Port
 // in normal use. Swap for an LRU crate only if that ever stops being true.
 const MAX_ENTRIES: usize = 512;
 
-/// Stable identity of an enriched listener. Covers every input the enrichment
-/// pipeline reads — process name and command (framework detection) and working
-/// directory (project root → framework + favicon) — plus the PID and executable
-/// so a port that changes owner, or a reused PID, misses. Because the key is the
-/// full input set, a cache hit is guaranteed to equal a fresh compute, and any
-/// input change (including PID reuse with a different command) misses.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EnrichmentKey {
     pid: Option<u32>,
@@ -38,8 +32,6 @@ impl EnrichmentKey {
     }
 }
 
-/// The enrichment fields that are expensive to recompute (filesystem work).
-///
 /// ponytail: cached for the whole lifetime of a listener, including `None`
 /// results and the favicon path. That is the point of issue #26 — a stable
 /// process is enriched once, not every 2s. The tradeoff: a favicon or config
@@ -57,25 +49,17 @@ pub struct EnrichmentCache {
 }
 
 impl EnrichmentCache {
-    /// Applies cached enrichment to `items`, computing (and storing) only for
-    /// listeners not already cached. Entries for listeners absent from this
-    /// scan are evicted, so the map tracks the live set.
     pub fn apply<F>(&self, items: &mut [PortItem], mut compute: F)
     where
         F: FnMut(&PortItem) -> EnrichmentValue,
     {
         let keys: Vec<EnrichmentKey> = items.iter().map(EnrichmentKey::of).collect();
 
-        // Phase 1: serve hits under the lock, note misses. Lock released before
-        // any filesystem work so concurrent refreshes don't serialize on disk.
         let mut values: Vec<Option<EnrichmentValue>> = {
             let map = self.entries.lock().expect("enrichment cache poisoned");
             keys.iter().map(|key| map.get(key).cloned()).collect()
         };
 
-        // Phase 2: compute misses without holding the lock, deduplicating by
-        // key so a process with several listeners (dual-stack / multiple ports)
-        // is enriched once, not once per listener.
         let mut fresh: HashMap<EnrichmentKey, EnrichmentValue> = HashMap::new();
         for (index, slot) in values.iter_mut().enumerate() {
             if slot.is_none() {
@@ -91,10 +75,6 @@ impl EnrichmentCache {
             }
         }
 
-        // Phase 3: evict listeners absent from this scan (vanished processes and
-        // reused PIDs), THEN store freshly computed values. Evicting first keeps
-        // the map from transiently growing to old+new entries, which could trip
-        // the MAX_ENTRIES backstop and clear the whole cache spuriously.
         {
             let mut map = self.entries.lock().expect("enrichment cache poisoned");
             let live: HashSet<&EnrichmentKey> = keys.iter().collect();
@@ -198,7 +178,6 @@ mod tests {
             value("astro")
         };
 
-        // Same PID/exe/cwd on two ports (e.g. dual-stack) => one shared key.
         let mut scan = vec![listener(42, "app"), listener(42, "app")];
         cache.apply(&mut scan, &mut compute);
 
@@ -218,8 +197,6 @@ mod tests {
         cache.apply(&mut scan1, &mut compute);
         assert_eq!(cache.len(), 1);
 
-        // Same PID, different working directory (PID reuse) plus the old entry
-        // is gone from this scan: only the current key survives.
         let mut scan2 = vec![listener(100, "new")];
         cache.apply(&mut scan2, &mut compute);
         assert_eq!(cache.len(), 1);
@@ -231,8 +208,6 @@ mod tests {
         let cache = EnrichmentCache::default();
         let mut compute = |item: &PortItem| value(item.working_directory.as_deref().unwrap());
 
-        // Each scan replaces the previous live set, so the map never exceeds
-        // the per-scan listener count regardless of session length.
         for round in 0..(MAX_ENTRIES * 2) {
             let mut scan = vec![listener(round as u32, &format!("dir{round}"))];
             cache.apply(&mut scan, &mut compute);

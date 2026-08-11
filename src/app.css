@@ -120,8 +120,6 @@ body {
 }
 
 @layer base {
-  /* Inherit the app font on form controls, but stay in a layer so Tailwind
-     text-size/weight utilities (e.g. text-[11px]) still override these. */
   button,
   input,
   select {

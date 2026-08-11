@@ -165,9 +165,6 @@ fn display_name(process_name: &str, cwd: Option<&Path>) -> Option<String> {
     Some(process_name.trim_end_matches(".exe").to_string())
 }
 
-// A listener is a "system" port when its owning process is a Windows OS process:
-// running under a built-in system account, the kernel (pid <= 4), or an executable
-// inside the Windows directory. Owner account is the authoritative signal.
 pub(crate) fn is_system_process(
     sid: Option<&str>,
     exe: Option<&Path>,
@@ -221,7 +218,6 @@ mod tests {
 
     #[test]
     fn classifies_system_by_account_and_location() {
-        // Built-in system accounts (SYSTEM / LOCAL SERVICE / NETWORK SERVICE)
         assert!(is_system_process(
             Some("S-1-5-18"),
             None,
@@ -234,9 +230,7 @@ mod tests {
             "spoolsv.exe",
             900
         ));
-        // Kernel
         assert!(is_system_process(None, None, "System", 4));
-        // Executable inside the Windows directory, even without an SID
         let sys_exe = format!(
             "{}\\System32\\spoolsv.exe",
             std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
@@ -247,7 +241,6 @@ mod tests {
             "spoolsv.exe",
             900
         ));
-        // A normal dev server owned by the user, running from a project folder
         assert!(!is_system_process(
             Some("S-1-5-21-1-2-3-1001"),
             Some(Path::new("C:\\Projects\\shop\\node.exe")),

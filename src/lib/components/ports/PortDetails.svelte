@@ -3,18 +3,18 @@
   import Check from "@lucide/svelte/icons/check";
   import Clipboard from "@lucide/svelte/icons/clipboard";
   import Clock3 from "@lucide/svelte/icons/clock-3";
-  import CodeIcon from "@lucide/svelte/icons/code";
   import Container from "@lucide/svelte/icons/container";
   import ExternalLink from "@lucide/svelte/icons/external-link";
   import FolderOpen from "@lucide/svelte/icons/folder-open";
   import MemoryStick from "@lucide/svelte/icons/memory-stick";
+  import Pin from "@lucide/svelte/icons/pin";
   import Radio from "@lucide/svelte/icons/radio";
   import TerminalSquare from "@lucide/svelte/icons/square-terminal";
   import Terminal from "@lucide/svelte/icons/terminal";
   import PortActions from "$lib/components/ports/PortActions.svelte";
   import PortBadge from "$lib/components/ports/PortBadge.svelte";
-  import { vsCodeAvailable } from "$lib/stores/editor";
-  import { copyText, openInEditor, openPath } from "$lib/tauri/commands";
+  import { copyText, openPath } from "$lib/tauri/commands";
+  import { settings, settingsLoading, saveSettings } from "$lib/stores/settings";
   import type { PortItem } from "$lib/types/port";
   import { fileName, formatMemory, formatUptime } from "$lib/utils/format";
   import { isExposed, portSource } from "$lib/utils/ports.js";
@@ -47,9 +47,12 @@
     if (!path) return;
     void openPath(path).catch(reportOpenError);
   }
-  function openEditor(path: string | null): void {
-    if (!path) return;
-    void openInEditor(path).catch(reportOpenError);
+  function togglePin(portNumber: number): void {
+    const pinned = $settings.pinnedPorts.includes(portNumber);
+    const pinnedPorts = pinned
+      ? $settings.pinnedPorts.filter((item) => item !== portNumber)
+      : [...$settings.pinnedPorts, portNumber];
+    void saveSettings({ ...$settings, pinnedPorts });
   }
 
   const revealButtonClass =
@@ -77,6 +80,16 @@
           >
             {listener.address} · {isExposed(listener.address) ? "exposed" : "local only"}
           </span>
+          <button
+            type="button"
+            disabled={$settingsLoading}
+            aria-label={$settings.pinnedPorts.includes(listener.port) ? `Unpin port ${listener.port}` : `Pin port ${listener.port}`}
+            title={$settings.pinnedPorts.includes(listener.port) ? "Unpin port" : "Pin port"}
+            onclick={() => togglePin(listener.port)}
+            class={`grid size-7 shrink-0 place-items-center rounded-md transition-colors disabled:opacity-40 ${$settings.pinnedPorts.includes(listener.port) ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"}`}
+          >
+            <Pin size={13} strokeWidth={1.8} fill={$settings.pinnedPorts.includes(listener.port) ? "currentColor" : "none"} aria-hidden="true" />
+          </button>
           <PortActions port={listener} mode="listener" />
         </li>
       {/each}
@@ -159,17 +172,6 @@
         >
           <ExternalLink size={13} strokeWidth={1.8} aria-hidden="true" />
         </button>
-        {#if $vsCodeAvailable}
-          <button
-            type="button"
-            aria-label="Open in VS Code"
-            title="Open in VS Code"
-            onclick={() => openEditor(port.workingDirectory)}
-            class={revealButtonClass}
-          >
-            <CodeIcon size={13} strokeWidth={1.8} aria-hidden="true" />
-          </button>
-        {/if}
       {/if}
       {@render copyButton("project", port.workingDirectory, "Copy project path")}
     </div>

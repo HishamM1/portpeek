@@ -6,23 +6,15 @@
   import PortList from "$lib/components/ports/PortList.svelte";
   import SettingsPanel from "$lib/components/settings/SettingsPanel.svelte";
   import Toolbar from "$lib/components/toolbar/Toolbar.svelte";
-  import { loadEditorAvailability } from "$lib/stores/editor";
   import { loadSettings } from "$lib/stores/settings";
-  import { trackAppStarted, trackSettingsOpened } from "$lib/analytics";
 
   let settingsOpen = $state(false);
 
   async function closeSettings() {
     settingsOpen = false;
-    // Return focus to the persistent Settings trigger in the toolbar. tick() lets
-    // Svelte reconcile the view swap first so the button is present and focusable.
     await tick();
     document.getElementById("settings-toggle")?.focus();
   }
-
-  $effect(() => {
-    if (settingsOpen) trackSettingsOpened();
-  });
 
   const swapMs =
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -30,9 +22,7 @@
       : 180;
 
   onMount(async () => {
-    void loadEditorAvailability();
     await loadSettings();
-    trackAppStarted();
   });
 </script>
 
