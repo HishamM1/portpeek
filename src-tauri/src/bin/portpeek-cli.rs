@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use portpeek_lib::domain::ports::types::{PortItem, PortProtocol};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -12,7 +13,7 @@ struct Cli {
     command: Option<Command>,
 
     /// Include system/OS-owned ports in the listing
-    #[arg(long, global = true)]
+    #[arg(short = 'a', long, global = true)]
     all: bool,
 
     /// Include UDP listeners in the listing
@@ -220,8 +221,8 @@ fn print_table(items: &[PortItem]) {
         return;
     }
 
-    let rows: Vec<[String; 5]> = items
-        .iter()
+    let rows: Vec<[String; 5]> = unique_table_items(items)
+        .into_iter()
         .map(|item| {
             [
                 item.port.to_string(),
@@ -248,6 +249,14 @@ fn print_table(items: &[PortItem]) {
     for row in &rows {
         print_row(row, &widths);
     }
+}
+
+fn unique_table_items(items: &[PortItem]) -> Vec<&PortItem> {
+    let mut seen = HashSet::new();
+    items
+        .iter()
+        .filter(|item| seen.insert((item.port, protocol_label(item.protocol), item.pid)))
+        .collect()
 }
 
 fn print_row(cells: &[String; 5], widths: &[usize; 5]) {
@@ -344,6 +353,38 @@ mod tests {
         assert!(cli.all);
         assert!(cli.udp);
         assert!(cli.json);
+    }
+
+    #[test]
+    fn parses_short_all_flag() {
+        let cli = Cli::parse_from(["portpeek", "-a"]);
+        assert!(cli.all);
+    }
+
+    #[test]
+    fn table_hides_ipv4_ipv6_duplicates() {
+        let item = |address: &str| PortItem {
+            id: address.into(),
+            port: 5432,
+            address: address.into(),
+            protocol: PortProtocol::Tcp,
+            pid: Some(3008),
+            process_name: Some("postgres.exe".into()),
+            display_name: Some("postgres".into()),
+            memory_mb: Some(5.6),
+            uptime_seconds: None,
+            command: None,
+            executable_path: None,
+            working_directory: None,
+            url: None,
+            favicon_url: None,
+            cached_favicon_path: None,
+            framework: None,
+            is_system_port: false,
+        };
+        let items = [item("127.0.0.1"), item("::1")];
+        assert_eq!(unique_table_items(&items).len(), 1);
+        assert_eq!(items.len(), 2);
     }
 
     #[test]
