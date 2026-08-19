@@ -95,6 +95,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 - **v1.1.0:** open project folders from port details; elevated stop via a one-off UAC prompt.
 - **v1.2.1:** **CLI Companion bundling & PATH integration** — The installer bundles `portpeek.exe` under `$INSTDIR\bin` and prompts the user to add it to their current-user PATH. PATH updates support long values, prevent duplicates, and uninstallation removes only the PortPeek-created entry and directory.
 - **v1.2.2:** CLI table collapses matching IPv4/IPv6 listeners by port, protocol, and PID; raw JSON and port inspection retain every address. `-a` is the short alias for `--all`.
+- **v1.2.3:** **CLI collapses everywhere, with an `ADDRESS` column** — table, port inspection, and `--json` all emit one row per listener (grouped by port + protocol + PID) instead of one per bind address. The table gained an `ADDRESS` column after `PROTO` listing every address (`*` for a wildcard `0.0.0.0`/`::` bind); `--json` replaces `address` with an `addresses` array and drops the address from `id` (`tcp|5432|17364`). Table column widths now count characters, not bytes, so the `—` placeholder no longer misaligns rows. Docs: `-a` documented as the `--all` alias, README gained a CLI section.
 - **v1.2.0:** expanded framework/runtime/service detection and matching technology icons.
 - **v1.2.0:** **enrichment cache** (#26) — framework/favicon results for a stable listener are computed once and reused across refreshes, keyed by (PID, executable, working dir); vanished/reused-PID entries evict each scan. Cuts background CPU/I/O for long tray sessions, no visible behavior change.
 
@@ -104,7 +105,7 @@ What the product does today. Add a bullet whenever you ship user-facing behavior
 
 The current/next-version tracker. **Keep it accurate on every release** — it's how the next session knows where things stand and what's slated next.
 
-- **Shipped:** **v1.2.2**.
+- **Shipped:** **v1.2.3**.
 - **Next / in flight:** not scheduled.
 - **Planned after (unassigned to a version):** #4 Windows code signing (SmartScreen) — blocked on an owner decision (SignPath Foundation / Azure Trusted Signing / EV cert) + secrets. Pin scope to a **GitHub milestone** when you schedule a version.
 
@@ -114,7 +115,7 @@ On each release:
 
 ## 4. Implementation status (honest)
 
-**Shipped:** `main` = **v1.2.2** — the **Current features** list above is what's live.
+**Shipped:** `main` = **v1.2.3** — the **Current features** list above is what's live.
 
 **Planned — tracked as GitHub Issues (label `enhancement`), each with a design plan in its body:**
 - **Planned after:** #4 Windows code signing (SmartScreen).

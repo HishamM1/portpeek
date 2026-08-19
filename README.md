@@ -26,6 +26,32 @@ Prefer a package manager? Install it with `winget install PortPeek`.
 
 On first launch Windows may show a SmartScreen warning because the installer is not currently code-signed. This is a reputation warning, not a malware verdict: download only from the official GitHub release, then choose **More info**, then **Run anyway** if you trust the source.
 
+## Command line
+
+The installer ships `portpeek`, a standalone CLI, and can add it to your PATH during setup.
+
+```
+PS> portpeek
+PORT  PROTO  ADDRESS         PID    PROCESS   MEM
+5173  tcp    *               14820  vite      48 MB
+5432  tcp    127.0.0.1, ::1  5140   postgres  2 MB
+
+PS> portpeek 5173      # everything about the process holding a port
+PS> portpeek free 5173 # stop it
+```
+
+One row per listener: a process bound to both IPv4 and IPv6 appears once, with every bind address in `ADDRESS` (`*` = wildcard, listening on every interface).
+
+| Flag | Effect |
+| --- | --- |
+| `-a`, `--all` | Include system/OS-owned ports (hidden by default). |
+| `--udp` | Include UDP listeners (TCP-only by default). |
+| `--json` | Machine-readable JSON instead of the table. |
+| `-h`, `--help` | Show usage. |
+| `-V`, `--version` | Print the version. |
+
+Full guide: [portpeek CLI docs](https://hishamm1.github.io/portpeek/cli.html).
+
 ## See it
 
 [Try the interactive demo](https://hishamm1.github.io/portpeek/) — a playable PortPeek right in your browser.
