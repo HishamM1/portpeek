@@ -185,22 +185,23 @@
     <div class="term">
       <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek</span>
-<span class="hd">PORT   PROTO  PID    PROCESS   MEM</span>
-<span class="o">5173   tcp    14820  vite      48 MB</span>
-<span class="o">5432   tcp    5140   postgres  2 MB</span>
-<span class="o">9277   tcp    9784   warp      102 MB</span></pre>
+<span class="hd">PORT  PROTO  ADDRESS         PID    PROCESS   MEM</span>
+<span class="o">5173  tcp    *               14820  vite      48 MB</span>
+<span class="o">5432  tcp    127.0.0.1, ::1  5140   postgres  2 MB</span>
+<span class="o">9277  tcp    127.0.0.1       9784   warp      102 MB</span></pre>
     </div>
-    <h3>Include more with <code>--all</code> and <code>--udp</code></h3>
+    <p style="margin-top:14px">One row per listener, not per socket. A process bound to both IPv4 and IPv6 shows once, with every bind address in <code>ADDRESS</code>; <code>*</code> means a wildcard bind (<code>0.0.0.0</code>/<code>::</code>) — listening on every interface.</p>
+    <h3>Include more with <code>-a</code>/<code>--all</code> and <code>--udp</code></h3>
     <p>Add system-owned ports, UDP listeners, or both:</p>
     <div class="term">
       <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek --all --udp</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek --all --udp</span>
-<span class="hd">PORT   PROTO  PID    PROCESS     MEM</span>
-<span class="o">135    tcp    1084   svchost     1 MB</span>
-<span class="o">445    tcp    4      System      0 MB</span>
-<span class="o">5173   tcp    14820  vite        48 MB</span>
-<span class="o">5353   udp    1520   svchost     2 MB</span>
-<span class="o">41641  udp    9076   tailscaled  17 MB</span></pre>
+<span class="hd">PORT   PROTO  ADDRESS       PID    PROCESS     MEM</span>
+<span class="o">135    tcp    *             1084   svchost     1 MB</span>
+<span class="o">445    tcp    *             4      System      0 MB</span>
+<span class="o">5173   tcp    *             14820  vite        48 MB</span>
+<span class="o">5353   udp    *             1520   svchost     2 MB</span>
+<span class="o">41641  udp    100.114.54.3  9076   tailscaled  17 MB</span></pre>
     </div>
   </section>
 
@@ -211,7 +212,7 @@
       <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek 5173</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek 5173</span>
 <span class="o">port:        5173 (tcp)</span>
-<span class="o">address:     0.0.0.0</span>
+<span class="o">address:     *</span>
 <span class="o">process:     vite</span>
 <span class="o">pid:         14820</span>
 <span class="o">memory:      48 MB</span>
@@ -246,7 +247,7 @@
     <table class="tbl">
       <thead><tr><th>Flag</th><th>Effect</th></tr></thead>
       <tbody>
-        <tr><td><code>--all</code></td><td>Include system/OS-owned ports in the listing (hidden by default).</td></tr>
+        <tr><td><code>-a</code>, <code>--all</code></td><td>Include system/OS-owned ports in the listing (hidden by default).</td></tr>
         <tr><td><code>--udp</code></td><td>Include UDP listeners (TCP-only by default).</td></tr>
         <tr><td><code>--json</code></td><td>Print machine-readable JSON instead of the table — for scripts and pipelines.</td></tr>
         <tr><td><code>-h</code>, <code>--help</code></td><td>Show usage for the command.</td></tr>
@@ -257,15 +258,15 @@
 
   <section id="json">
     <h2><span class="n">06</span>Scripting with <code>--json</code></h2>
-    <p class="sub">Every command takes <code>--json</code>. The listing and single-port output use the exact same <code>PortItem</code> shape the app itself consumes (camelCase fields), so you can pipe it straight into <code>jq</code>, CI, or your own tooling. The CLI leaves <code>url</code>, <code>framework</code>, and the favicon fields <code>null</code> — those come from the app's detection step, which the CLI skips.</p>
+    <p class="sub">Every command takes <code>--json</code>. The listing and single-port output emit one object per listener (camelCase fields, the app's <code>PortItem</code> shape) with the bind addresses collected into an <code>addresses</code> array, so you can pipe it straight into <code>jq</code>, CI, or your own tooling. The CLI leaves <code>url</code>, <code>framework</code>, and the favicon fields <code>null</code> — those come from the app's detection step, which the CLI skips.</p>
     <div class="term">
       <div class="term-bar"><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="d" aria-hidden="true"></span><span class="t">portpeek 5173 --json</span></div>
       <pre><span class="p">PS&gt;</span> <span class="c">portpeek 5173 --json</span>
 <span class="o">[
   {
-    <span class="dim">"id"</span>: "tcp|0.0.0.0|5173|14820",
+    <span class="dim">"id"</span>: "tcp|5173|14820",
     <span class="dim">"port"</span>: 5173,
-    <span class="dim">"address"</span>: "0.0.0.0",
+    <span class="dim">"addresses"</span>: ["0.0.0.0", "::"],
     <span class="dim">"protocol"</span>: "tcp",
     <span class="dim">"pid"</span>: 14820,
     <span class="dim">"processName"</span>: "node.exe",

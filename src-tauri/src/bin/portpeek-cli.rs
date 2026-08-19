@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use portpeek_lib::domain::ports::types::{PortItem, PortProtocol};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -94,10 +94,11 @@ fn list(all: bool, udp: bool, json: bool) -> Result<(), String> {
         items.retain(|item| !item.is_system_port);
     }
 
+    let rows = collapse(&items);
     if json {
-        print_json(&items)
+        print_json(&rows)
     } else {
-        print_table(&items);
+        print_table(&rows);
         Ok(())
     }
 }
@@ -108,12 +109,13 @@ fn show(port: u16, json: bool) -> Result<(), String> {
         return Err(format!("nothing is listening on port {port}"));
     }
 
+    let rows = collapse(&items);
     if json {
-        return print_json(&items);
+        return print_json(&rows);
     }
 
-    for item in &items {
-        print_details(item);
+    for row in &rows {
+        print_details(row);
     }
     Ok(())
 }
@@ -207,26 +209,85 @@ fn terminate(_pid: u32) -> Result<(), String> {
     Err("process termination is currently supported on Windows only".into())
 }
 
-fn print_json(items: &[PortItem]) -> Result<(), String> {
+/// One listener, with every address it is bound to. The same process on the same
+/// port shows up once per bind address in the OS tables (127.0.0.1 and ::1, say),
+/// and those rows are identical apart from the address.
+struct Row<'a> {
+    item: &'a PortItem,
+    addresses: Vec<&'a str>,
+}
+
+impl Row<'_> {
+    fn address_cell(&self) -> String {
+        if self.addresses.iter().all(|address| matches!(*address, "0.0.0.0" | "::")) {
+            "*".to_string()
+        } else {
+            self.addresses.join(", ")
+        }
+    }
+
+    fn id(&self) -> String {
+        let protocol = protocol_label(self.item.protocol);
+        match self.item.pid {
+            Some(pid) => format!("{protocol}|{}|{pid}", self.item.port),
+            None => format!("{protocol}|{}", self.item.port),
+        }
+    }
+
+    fn to_json(&self) -> Result<serde_json::Value, String> {
+        let mut value = serde_json::to_value(self.item).map_err(|error| error.to_string())?;
+        let object = value
+            .as_object_mut()
+            .ok_or_else(|| "expected a port object".to_string())?;
+        object.remove("address");
+        object.insert("id".into(), self.id().into());
+        object.insert("addresses".into(), self.addresses.clone().into());
+        Ok(value)
+    }
+}
+
+fn collapse(items: &[PortItem]) -> Vec<Row<'_>> {
+    let mut rows: Vec<Row> = Vec::new();
+    let mut index: HashMap<_, usize> = HashMap::new();
+    for item in items {
+        let key = (item.port, protocol_label(item.protocol), item.pid);
+        match index.get(&key) {
+            Some(&position) => rows[position].addresses.push(&item.address),
+            None => {
+                index.insert(key, rows.len());
+                rows.push(Row {
+                    item,
+                    addresses: vec![&item.address],
+                });
+            }
+        }
+    }
+    rows
+}
+
+fn print_json(rows: &[Row]) -> Result<(), String> {
+    let payload = rows.iter().map(Row::to_json).collect::<Result<Vec<_>, _>>()?;
     println!(
         "{}",
-        serde_json::to_string_pretty(items).map_err(|error| error.to_string())?
+        serde_json::to_string_pretty(&payload).map_err(|error| error.to_string())?
     );
     Ok(())
 }
 
-fn print_table(items: &[PortItem]) {
-    if items.is_empty() {
+fn print_table(rows: &[Row]) {
+    if rows.is_empty() {
         println!("No listening ports found.");
         return;
     }
 
-    let rows: Vec<[String; 5]> = unique_table_items(items)
-        .into_iter()
-        .map(|item| {
+    let cells: Vec<[String; 6]> = rows
+        .iter()
+        .map(|row| {
+            let item = row.item;
             [
                 item.port.to_string(),
                 protocol_label(item.protocol).to_string(),
+                row.address_cell(),
                 item.pid.map(|pid| pid.to_string()).unwrap_or_else(|| "—".into()),
                 item.display_name
                     .clone()
@@ -237,29 +298,27 @@ fn print_table(items: &[PortItem]) {
         })
         .collect();
 
-    let headers = ["PORT", "PROTO", "PID", "PROCESS", "MEM"];
-    let mut widths = headers.map(str::len);
-    for row in &rows {
+    let headers = ["PORT", "PROTO", "ADDRESS", "PID", "PROCESS", "MEM"];
+    let mut widths = headers.map(display_width);
+    for row in &cells {
         for (width, cell) in widths.iter_mut().zip(row) {
-            *width = (*width).max(cell.len());
+            *width = (*width).max(display_width(cell));
         }
     }
 
     print_row(&headers.map(str::to_string), &widths);
-    for row in &rows {
+    for row in &cells {
         print_row(row, &widths);
     }
 }
 
-fn unique_table_items(items: &[PortItem]) -> Vec<&PortItem> {
-    let mut seen = HashSet::new();
-    items
-        .iter()
-        .filter(|item| seen.insert((item.port, protocol_label(item.protocol), item.pid)))
-        .collect()
+fn display_width(cell: &str) -> usize {
+    // ponytail: char count, not bytes — the "—" placeholder is 3 bytes wide and
+    // would over-pad its column. Good enough short of full grapheme handling.
+    cell.chars().count()
 }
 
-fn print_row(cells: &[String; 5], widths: &[usize; 5]) {
+fn print_row(cells: &[String; 6], widths: &[usize; 6]) {
     let line = cells
         .iter()
         .zip(widths)
@@ -269,9 +328,10 @@ fn print_row(cells: &[String; 5], widths: &[usize; 5]) {
     println!("{}", line.trim_end());
 }
 
-fn print_details(item: &PortItem) {
+fn print_details(row: &Row) {
+    let item = row.item;
     println!("port:        {} ({})", item.port, protocol_label(item.protocol));
-    println!("address:     {}", item.address);
+    println!("address:     {}", row.address_cell());
     println!(
         "process:     {}",
         item.display_name
@@ -361,14 +421,13 @@ mod tests {
         assert!(cli.all);
     }
 
-    #[test]
-    fn table_hides_ipv4_ipv6_duplicates() {
-        let item = |address: &str| PortItem {
-            id: address.into(),
-            port: 5432,
+    fn listener(address: &str, port: u16, pid: u32) -> PortItem {
+        PortItem {
+            id: format!("tcp|{address}|{port}|{pid}"),
+            port,
             address: address.into(),
             protocol: PortProtocol::Tcp,
-            pid: Some(3008),
+            pid: Some(pid),
             process_name: Some("postgres.exe".into()),
             display_name: Some("postgres".into()),
             memory_mb: Some(5.6),
@@ -381,10 +440,53 @@ mod tests {
             cached_favicon_path: None,
             framework: None,
             is_system_port: false,
-        };
-        let items = [item("127.0.0.1"), item("::1")];
-        assert_eq!(unique_table_items(&items).len(), 1);
-        assert_eq!(items.len(), 2);
+        }
+    }
+
+    #[test]
+    fn collapses_ipv4_ipv6_into_one_row() {
+        let items = [
+            listener("127.0.0.1", 5432, 3008),
+            listener("::1", 5432, 3008),
+        ];
+        let rows = collapse(&items);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].address_cell(), "127.0.0.1, ::1");
+        assert_eq!(rows[0].id(), "tcp|5432|3008");
+    }
+
+    #[test]
+    fn keeps_distinct_pids_apart() {
+        let items = [
+            listener("127.0.0.1", 5432, 3008),
+            listener("0.0.0.0", 5432, 4011),
+        ];
+        assert_eq!(collapse(&items).len(), 2);
+    }
+
+    #[test]
+    fn shows_wildcard_binds_as_a_star() {
+        let items = [listener("0.0.0.0", 22, 6380), listener("::", 22, 6380)];
+        assert_eq!(collapse(&items)[0].address_cell(), "*");
+    }
+
+    #[test]
+    fn json_replaces_address_with_an_addresses_array() {
+        let items = [
+            listener("127.0.0.1", 5432, 3008),
+            listener("::1", 5432, 3008),
+        ];
+        let value = collapse(&items)[0].to_json().unwrap();
+        assert!(value.get("address").is_none());
+        assert_eq!(value["addresses"], serde_json::json!(["127.0.0.1", "::1"]));
+        assert_eq!(value["id"], "tcp|5432|3008");
+        assert_eq!(value["port"], 5432);
+    }
+
+    #[test]
+    fn column_width_counts_characters_not_bytes() {
+        assert_eq!(display_width("—"), 1);
+        assert_eq!(display_width("127.0.0.1, ::1"), 14);
     }
 
     #[test]
